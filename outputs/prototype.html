@@ -1,0 +1,727 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>软件测试期末复习整合包 · 交互原型</title>
+<style>
+  :root {
+    --primary: #1a5cff;
+    --primary-soft: #eaf0ff;
+    --bg: #f4f6fb;
+    --card: #ffffff;
+    --text: #1f2430;
+    --muted: #6b7280;
+    --border: #e2e6ee;
+    --ok: #15803d;
+    --warn: #b45309;
+    --danger: #b91c1c;
+    --shadow: 0 1px 3px rgba(16, 24, 40, .08), 0 4px 14px rgba(16, 24, 40, .06);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+  header {
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+    background: var(--card); border-bottom: 1px solid var(--border); padding: 12px 24px;
+    position: sticky; top: 0; z-index: 20;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 18px; }
+  .brand-logo {
+    width: 32px; height: 32px; border-radius: 8px; background: var(--primary);
+    color: #fff; display: grid; place-items: center; font-size: 16px;
+  }
+  nav { display: flex; gap: 4px; flex-wrap: wrap; }
+  nav button {
+    border: none; background: transparent; padding: 8px 12px; border-radius: 8px;
+    cursor: pointer; font-size: 14px; color: var(--text);
+  }
+  nav button.active { background: var(--primary-soft); color: var(--primary); font-weight: 500; }
+  main { max-width: 1120px; margin: 20px auto 60px; padding: 0 20px; }
+
+  .steps {
+    display: flex; align-items: center; justify-content: center; gap: 0;
+    margin: 4px 0 24px; flex-wrap: wrap;
+  }
+  .step {
+    display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px;
+    font-size: 13px; color: var(--muted);
+  }
+  .step .dot {
+    width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center;
+    background: #e5e7eb; color: var(--muted); font-size: 12px; font-weight: 600;
+  }
+  .step.active { background: var(--primary-soft); color: var(--primary); font-weight: 500; }
+  .step.active .dot { background: var(--primary); color: #fff; }
+  .step.done .dot { background: var(--ok); color: #fff; }
+  .step-arrow { color: #cbd5e1; margin: 0 2px; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 860px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: 18px 20px; box-shadow: var(--shadow);
+  }
+  .card h2 { font-size: 16px; margin-bottom: 12px; }
+  .card h3 { font-size: 14px; margin: 16px 0 8px; }
+  .hint { color: var(--muted); font-size: 12px; margin-top: 4px; }
+
+  label { display: block; font-size: 13px; color: var(--text); margin: 10px 0 4px; font-weight: 500; }
+  input, select, textarea {
+    width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px;
+    font-size: 14px; font-family: inherit; background: #fff; color: var(--text);
+  }
+  textarea { min-height: 120px; resize: vertical; }
+  .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+  .chip {
+    border: 1px solid var(--border); background: #fff; border-radius: 999px;
+    padding: 4px 10px; font-size: 13px; cursor: pointer; user-select: none;
+  }
+  .chip.on { background: var(--primary-soft); border-color: var(--primary); color: var(--primary); font-weight: 500; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border);
+    background: #fff; color: var(--text); padding: 9px 16px; border-radius: 9px;
+    font-size: 14px; cursor: pointer;
+  }
+  .btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 500; }
+  .btn.small { padding: 4px 10px; font-size: 12px; border-radius: 7px; }
+  .btn:disabled { opacity: .55; cursor: not-allowed; }
+
+  .progress { height: 8px; border-radius: 999px; background: #e5e7eb; overflow: hidden; margin: 14px 0 6px; }
+  .progress-bar { height: 100%; width: 0; background: var(--primary); border-radius: 999px; transition: width .25s; }
+  .status { font-size: 13px; color: var(--muted); }
+
+  .upload-zone {
+    border: 1.5px dashed var(--primary); background: var(--primary-soft); border-radius: 10px;
+    padding: 14px; text-align: center; color: var(--primary); font-size: 14px; cursor: pointer;
+  }
+  .upload-zone input { display: none; }
+
+  .summary-block { background: var(--primary-soft); border-radius: 10px; padding: 12px 14px; font-size: 13px; color: #334155; }
+  .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 12px 0; }
+  .metric { background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 10px; text-align: center; }
+  .metric .num { font-size: 22px; font-weight: 600; color: var(--primary); }
+  .metric .label { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+  .tab {
+    border: 1px solid var(--border); background: #fff; border-radius: 999px;
+    padding: 6px 12px; font-size: 13px; cursor: pointer;
+  }
+  .tab.active { background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 500; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; white-space: nowrap; }
+  .table-wrap { overflow-x: auto; }
+
+  .badge { display: inline-block; border-radius: 999px; padding: 2px 8px; font-size: 12px; }
+  .badge.easy { background: #dcfce7; color: #166534; }
+  .badge.medium { background: #fef3c7; color: #92400e; }
+  .badge.hard { background: #fee2e2; color: #991b1b; }
+  .badge.high { background: #ffe4e6; color: #9f1239; }
+  .badge.ok { background: #dcfce7; color: #166534; }
+  .badge.warn { background: #fef3c7; color: #92400e; }
+
+  .edit-panel { background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-top: 8px; }
+  .edit-panel .row-2 { margin-top: 8px; }
+  .edit-panel .actions { margin-top: 10px; display: flex; gap: 8px; }
+
+  .question { border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 12px; }
+  .question .q-title { font-weight: 600; font-size: 14px; margin-bottom: 6px; }
+  .question ol { margin: 8px 0 8px 20px; }
+
+  .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 720px) { .charts { grid-template-columns: 1fr; } }
+  .donut { position: relative; width: 150px; height: 150px; margin: 8px auto; }
+  .donut svg { transform: rotate(-90deg); }
+  .donut .center {
+    position: absolute; inset: 0; display: grid; place-items: center; text-align: center;
+    font-size: 24px; font-weight: 600; color: var(--primary);
+  }
+  .donut .center small { display: block; font-size: 12px; color: var(--muted); font-weight: 400; }
+  .bar-row { display: flex; align-items: center; gap: 8px; margin: 8px 0; font-size: 13px; }
+  .bar-row .bar-name { width: 84px; color: var(--muted); }
+  .bar-track { flex: 1; height: 12px; border-radius: 999px; background: #e5e7eb; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 999px; background: var(--primary); }
+  .bar-row .bar-val { width: 44px; text-align: right; }
+
+  .export-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+  .export-row .field { flex: 1; min-width: 160px; }
+
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: #111827; color: #fff; padding: 10px 18px; border-radius: 10px;
+    font-size: 13px; opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 50;
+  }
+  .toast.show { opacity: 1; }
+
+  .modal-mask {
+    position: fixed; inset: 0; background: rgba(15, 23, 42, .45); display: none;
+    place-items: center; z-index: 40; padding: 20px;
+  }
+  .modal-mask.show { display: grid; }
+  .modal { background: #fff; border-radius: 14px; max-width: 520px; width: 100%; padding: 22px; }
+  .modal h3 { margin-bottom: 10px; }
+  .modal p { font-size: 13px; color: #475569; margin-bottom: 8px; }
+  .modal .close-row { text-align: right; margin-top: 12px; }
+
+  .version { display: inline-block; font-size: 12px; color: var(--muted); background: #f1f5f9; border-radius: 999px; padding: 3px 10px; }
+  .empty { color: var(--muted); font-size: 13px; padding: 8px 0; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <span class="brand-logo">复</span>
+    <span>软件测试期末复习整合包</span>
+  </div>
+  <nav>
+    <button data-nav="input" class="active" onclick="showNav('input')">输入大纲</button>
+    <button data-nav="result" onclick="showNav('result')">生成结果</button>
+    <button data-nav="export" onclick="showNav('export')">导出</button>
+    <button onclick="openHelp()">帮助</button>
+  </nav>
+</header>
+
+<main>
+  <div class="steps" aria-label="四步流程">
+    <div class="step active" id="step-1"><span class="dot">1</span>输入大纲</div>
+    <span class="step-arrow">→</span>
+    <div class="step" id="step-2"><span class="dot">2</span>AI 生成</div>
+    <span class="step-arrow">→</span>
+    <div class="step" id="step-3"><span class="dot">3</span>确认微调</div>
+    <span class="step-arrow">→</span>
+    <div class="step" id="step-4"><span class="dot">4</span>导出</div>
+  </div>
+
+  <!-- 页面 1：输入页 -->
+  <section id="page-input" class="grid-2">
+    <div class="card">
+      <h2>① 输入大纲</h2>
+      <label class="upload-zone" for="ppt-file">📄 上传 PPT Outline（点击选择 .pptx / .txt）</label>
+      <input type="file" id="ppt-file" accept=".pptx,.ppt,.txt">
+      <label for="outline-text">或粘贴文本 Outline</label>
+      <textarea id="outline-text" placeholder="粘贴教学大纲或复习 PPT 提取文本……&#10;例如：1. 软件测试基本概念&#10;2. 测试用例设计方法（等价类、边界值）&#10;3. 缺陷生命周期与缺陷管理">1. 软件测试基本概念
+2. 测试用例设计方法（等价类、边界值）
+3. 黑盒测试与白盒测试
+4. 缺陷生命周期与缺陷管理
+5. 性能测试概述与压测指标（高频）
+6. 自动化测试框架选型（高频）
+7. 回归测试策略
+8. 测试文档与测试报告</textarea>
+      <div class="hint">支持 PPT 提取文本或直接粘贴大纲；文本将作为原始内容提交。</div>
+
+      <h3>元信息</h3>
+      <div class="row-2">
+        <div><label for="course-name">课程名称</label><input id="course-name" value="软件测试"></div>
+        <div><label for="course-code">课程代码</label><input id="course-code" value="CSE101"></div>
+      </div>
+      <div class="row-2">
+        <div><label for="semester">学期</label><input id="semester" value="2026 秋季"></div>
+        <div><label for="subject">科目标签</label><input id="subject" value="软件测试"></div>
+      </div>
+      <div class="row-2">
+        <div><label for="exam-date">考试日期</label><input id="exam-date" type="date" value="2026-12-20"></div>
+        <div><label for="duration">考试时长（分钟）</label><input id="duration" type="number" value="180" min="30" max="600"></div>
+      </div>
+
+      <h3>输出偏好</h3>
+      <div class="chips">
+        <span class="chip on" data-format="WORD" onclick="toggleChip(this)">Word（默认）</span>
+        <span class="chip" data-format="PDF" onclick="toggleChip(this)">PDF</span>
+        <span class="chip" data-format="MARKDOWN" onclick="toggleChip(this)">Markdown</span>
+        <span class="chip" data-format="JSON" onclick="toggleChip(this)">导入模板（JSON）</span>
+      </div>
+
+      <details>
+        <summary style="cursor:pointer;font-size:14px;margin-top:14px;color:var(--primary)">题型偏好与覆盖优先级（可选项）</summary>
+        <label>覆盖优先级</label>
+        <select id="coverage-priority">
+          <option value="high" selected>高（尽量覆盖全部知识点）</option>
+          <option value="medium">中</option>
+          <option value="low">低</option>
+        </select>
+        <label>偏好题型</label>
+        <div class="chips">
+          <span class="chip on" data-type="multiple_choice" onclick="toggleChip(this)">选择题</span>
+          <span class="chip on" data-type="short_answer" onclick="toggleChip(this)">简答题</span>
+          <span class="chip on" data-type="case_analysis" onclick="toggleChip(this)">案例分析</span>
+          <span class="chip" data-type="true_false" onclick="toggleChip(this)">判断题</span>
+          <span class="chip" data-type="fill_blank" onclick="toggleChip(this)">填空题</span>
+          <span class="chip" data-type="coding" onclick="toggleChip(this)">设计/编码题</span>
+        </div>
+        <label>难度权重</label>
+        <div class="row-2">
+          <div><label style="font-weight:400">简单</label><input type="number" value="30" min="0" max="100"></div>
+          <div><label style="font-weight:400">中等</label><input type="number" value="50" min="0" max="100"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div><label style="font-weight:400">困难</label><input type="number" value="20" min="0" max="100"></div>
+          <div></div>
+        </div>
+      </details>
+    </div>
+
+    <div class="card">
+      <h2>② 预览与生成</h2>
+      <div class="summary-block" id="preview-summary">
+        将根据上方大纲自动生成整合复习包草案：知识点要点摘要、题型模板与示例题、
+        覆盖率统计、个性化学习计划，并可导出 Word/PDF/Markdown。
+      </div>
+      <div class="metrics">
+        <div class="metric"><div class="num" id="preview-total">8</div><div class="label">大纲点总数</div></div>
+        <div class="metric"><div class="num" id="preview-covered">8</div><div class="label">覆盖点数（预估）</div></div>
+        <div class="metric"><div class="num" id="preview-rate">100%</div><div class="label">覆盖率预估</div></div>
+      </div>
+      <div class="progress" role="progressbar" aria-label="生成进度" id="gen-progress" style="display:none">
+        <div class="progress-bar" id="gen-bar"></div>
+      </div>
+      <div class="status" id="gen-status">准备就绪。将调用本地 Ollama 模型生成草案。</div>
+      <div style="margin-top:14px;display:flex;gap:10px">
+        <button class="btn primary" id="gen-btn" onclick="startGenerate()">Start AI Generate</button>
+        <button class="btn" onclick="resetDemo()">重置示例</button>
+      </div>
+      <div class="hint">原型演示：点击生成后模拟处理进度并跳转到结果页。</div>
+    </div>
+  </section>
+
+  <!-- 页面 2：结果页 -->
+  <section id="page-result" style="display:none">
+    <div class="card" style="margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <h2 style="margin:0">生成结果：软件测试期末复习整合包</h2>
+        <span class="version" id="version-label">outline_version：v1.0</span>
+      </div>
+      <div class="hint" style="margin-top:6px">生成方式：本地 Ollama（qwen2.5:7b）。生成时间：2026-08-19 10:30 · 生成耗时约 42 秒</div>
+    </div>
+
+    <div class="card">
+      <div class="tabs" id="result-tabs">
+        <button class="tab active" data-tab="p1" onclick="showTab('p1')">产出摘要</button>
+        <button class="tab" data-tab="p2" onclick="showTab('p2')">知识点清单</button>
+        <button class="tab" data-tab="p3" onclick="showTab('p3')">题型模板</button>
+        <button class="tab" data-tab="p4" onclick="showTab('p4')">示例题</button>
+        <button class="tab" data-tab="p5" onclick="showTab('p5')">覆盖率评估</button>
+        <button class="tab" data-tab="p6" onclick="showTab('p6')">学习计划</button>
+        <button class="tab" data-tab="p7" onclick="showTab('p7')">导出</button>
+      </div>
+
+      <div class="tab-panel active" id="p1">
+        <h3>执行摘要</h3>
+        <p style="font-size:14px">已从大纲中解析出 <b id="sum-total">8</b> 个知识点，当前覆盖率 <b id="sum-rate">100%</b>，
+        共生成 16 个题型模板与 5 道示例题。建议按“基础梳理 → 强化训练 → 冲刺模拟”三个阶段完成复习，
+        每日约 12 题、90 分钟。若覆盖率低于 85%，请回到知识点清单补充题型映射。</p>
+        <h3>题型分布目标（与考试常见分布对比）</h3>
+        <div class="charts">
+          <div>
+            <div class="bar-row"><span class="bar-name">选择题</span><div class="bar-track"><div class="bar-fill" style="width:35%"></div></div><span class="bar-val">35%</span></div>
+            <div class="bar-row"><span class="bar-name">简答题</span><div class="bar-track"><div class="bar-fill" style="width:25%"></div></div><span class="bar-val">25%</span></div>
+            <div class="bar-row"><span class="bar-name">案例分析</span><div class="bar-track"><div class="bar-fill" style="width:20%"></div></div><span class="bar-val">20%</span></div>
+            <div class="bar-row"><span class="bar-name">判断题</span><div class="bar-track"><div class="bar-fill" style="width:10%"></div></div><span class="bar-val">10%</span></div>
+            <div class="bar-row"><span class="bar-name">填空/设计</span><div class="bar-track"><div class="bar-fill" style="width:10%"></div></div><span class="bar-val">10%</span></div>
+          </div>
+          <div>
+            <p class="hint">目标分布偏差：<span class="badge ok">6% &lt; 15% ✓</span></p>
+            <p class="hint" style="margin-top:8px">题型分布符合度良好。可在“题型模板”页按知识点微调题型。</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-panel" id="p2">
+        <h3>知识点清单与要点摘要</h3>
+        <p class="hint">点击“编辑”可修改难度、题型与高频标记；保存后自动重新评估覆盖率。</p>
+        <div class="table-wrap">
+          <table id="topic-table">
+            <thead>
+              <tr><th>知识点ID</th><th>名称</th><th>要点摘要</th><th>难度</th><th>高频</th><th>题型</th><th>操作</th></tr>
+            </thead>
+            <tbody id="topic-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="tab-panel" id="p3">
+        <h3>表 1：知识点 → 题型模板覆盖映射</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>知识点ID</th><th>知识点名称</th><th>题型模板</th><th>题量区间</th><th>难度区间</th><th>覆盖率</th></tr></thead>
+            <tbody>
+              <tr><td>T101</td><td>软件测试基本概念</td><td>选择题、简答题</td><td>2-5</td><td>易-中</td><td><span class="badge ok">已覆盖</span></td></tr>
+              <tr><td>T102</td><td>测试用例设计方法</td><td>选择题、案例分析</td><td>3-6</td><td>中-难</td><td><span class="badge ok">已覆盖</span></td></tr>
+              <tr><td>T103</td><td>黑盒测试与白盒测试</td><td>简答题、判断题</td><td>2-4</td><td>中</td><td><span class="badge ok">已覆盖</span></td></tr>
+              <tr><td>T104</td><td>缺陷生命周期与缺陷管理</td><td>选择题、简答题</td><td>2-4</td><td>易-中</td><td><span class="badge ok">已覆盖</span></td></tr>
+              <tr><td>T105</td><td>性能测试概述与压测指标</td><td>案例分析、设计题</td><td>3-6</td><td>难</td><td><span class="badge ok">已覆盖</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <h3>表 2：题目生成模板（示例结构）</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>题型</th><th>题干模板</th><th>解析要点</th><th>正确答案要点</th></tr></thead>
+            <tbody>
+              <tr><td>选择题</td><td>关于「{知识点}」，下列哪项表述最符合课程内容？</td><td>对照讲义定义；排除绝对化表述</td><td>与课程讲义一致的正确表述</td></tr>
+              <tr><td>简答题</td><td>请简述「{知识点}」的核心概念与考查要点。</td><td>按“概念 → 应用 → 易错点”三步展开</td><td>概念定义 + 关键特征 + 典型应用</td></tr>
+              <tr><td>案例分析</td><td>给出与「{知识点}」相关的测试场景，分析测试重点与风险。</td><td>抓住场景关键词；结合测试方法</td><td>场景分析 + 测试策略 + 风险结论</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="tab-panel" id="p4">
+        <h3>具体题目产出示例（3-5 道）</h3>
+        <div class="question">
+          <div class="q-title">Q001 · 选择题 · 中</div>
+          <p>关于“测试用例设计方法”，下列哪项表述最符合课程内容？</p>
+          <ol>
+            <li>等价类划分属于白盒测试方法</li>
+            <li>边界值分析常与等价类划分结合使用</li>
+            <li>判定表仅适用于性能测试</li>
+            <li>因果图不能用于功能测试</li>
+          </ol>
+          <p><b>答案要点：</b>B；边界值分析通常配合等价类划分使用。</p>
+          <p><b>解析要点：</b>等价类/边界值属于黑盒方法；判定表与因果图用于功能场景分析。</p>
+        </div>
+        <div class="question">
+          <div class="q-title">Q002 · 案例分析 · 难</div>
+          <p>某电商系统在双十一期间出现响应时间急剧上升。请分析其性能测试重点与风险。</p>
+          <p><b>答案要点：</b>并发用户数、吞吐量、响应时间、资源利用率等压测指标。</p>
+          <p><b>解析要点：</b>先界定场景（高并发）→ 选择指标 → 制定压测方案 → 识别瓶颈。</p>
+        </div>
+        <div class="question">
+          <div class="q-title">Q003 · 简答题 · 易</div>
+          <p>请简述“缺陷生命周期”的核心阶段。</p>
+          <p><b>答案要点：</b>发现 → 提交 → 确认 → 修复 → 回归验证 → 关闭。</p>
+          <p><b>解析要点：</b>注意区分“缺陷状态”与“缺陷管理流程”，并结合缺陷管理系统说明。</p>
+        </div>
+      </div>
+
+      <div class="tab-panel" id="p5">
+        <h3>覆盖率与完整性评估</h3>
+        <div class="charts">
+          <div style="text-align:center">
+            <div class="donut">
+              <svg width="150" height="150" viewBox="0 0 150 150">
+                <circle cx="75" cy="75" r="60" fill="none" stroke="#e5e7eb" stroke-width="18"></circle>
+                <circle id="donut-arc" cx="75" cy="75" r="60" fill="none" stroke="#1a5cff" stroke-width="18"
+                  stroke-linecap="round" stroke-dasharray="377 0"></circle>
+              </svg>
+              <div class="center"><span id="donut-rate">100%<small>覆盖率</small></span></div>
+            </div>
+            <p class="hint">已覆盖 <b id="cov-covered">8</b> / <b id="cov-total">8</b> 个知识点（目标 ≥ 85%）</p>
+            <p id="cov-badge"><span class="badge ok">已达阈值 ✓</span></p>
+          </div>
+          <div>
+            <h3 style="margin-top:0">题型分布（当前草案）</h3>
+            <div class="bar-row"><span class="bar-name">选择题</span><div class="bar-track"><div class="bar-fill" style="width:38%"></div></div><span class="bar-val">38%</span></div>
+            <div class="bar-row"><span class="bar-name">简答题</span><div class="bar-track"><div class="bar-fill" style="width:31%"></div></div><span class="bar-val">31%</span></div>
+            <div class="bar-row"><span class="bar-name">案例分析</span><div class="bar-track"><div class="bar-fill" style="width:31%"></div></div><span class="bar-val">31%</span></div>
+            <p class="hint" style="margin-top:8px">若覆盖率低于阈值，请在“知识点清单”中为未覆盖知识点补充题型。</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-panel" id="p6">
+        <h3>个性化学习计划草案</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>日期</th><th>阶段</th><th>目标知识点</th><th>每日题量</th><th>时长</th></tr></thead>
+            <tbody id="plan-body"></tbody>
+          </table>
+        </div>
+        <p class="hint" style="margin-top:8px">计划按考试日期（2026-12-20）倒排生成，可在最终确认前手动调整每日题量与时长。</p>
+      </div>
+
+      <div class="tab-panel" id="p7">
+        <h3>导出选项</h3>
+        <div class="export-row">
+          <div class="field">
+            <label for="export-format">导出格式</label>
+            <select id="export-format">
+              <option value="WORD" selected>Word（默认）</option>
+              <option value="PDF">PDF</option>
+              <option value="MARKDOWN">Markdown</option>
+              <option value="JSON">导入模板（JSON）</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="export-template">模板</label>
+            <select id="export-template"><option>default（默认）</option><option>compact（精简）</option></select>
+          </div>
+          <div class="field">
+            <label style="white-space:nowrap">包含元信息</label>
+            <select id="export-meta"><option>包含（推荐）</option><option>不包含</option></select>
+          </div>
+          <button class="btn primary" onclick="doExport()">⬇ 下载导出文件</button>
+        </div>
+        <div class="hint" style="margin-top:12px">后端实现：POST /api/v1/export 返回 download_url，前端按链接下载。</div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="modal-mask" id="help-modal">
+  <div class="modal">
+    <h3>帮助：四步流程</h3>
+    <p><b>Step 1 输入大纲：</b>上传 PPT Outline 或粘贴文本，填写课程元信息与输出偏好。</p>
+    <p><b>Step 2 AI 生成：</b>点击“Start AI Generate”，后端调用本地 Ollama 模型生成草案（本原型为演示）。</p>
+    <p><b>Step 3 确认微调：</b>在“知识点清单”中编辑难度/题型/高频标记，保存后覆盖率自动重算。</p>
+    <p><b>Step 4 导出：</b>在“导出”页选择格式与模板，下载 Word / PDF / Markdown / JSON。</p>
+    <div class="close-row"><button class="btn primary" onclick="closeHelp()">知道了</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const initialTopics = [
+    { id: "T101", name: "软件测试基本概念", summary: "软件测试目的、原则与测试生命周期。", difficulty: "easy", high: false, types: ["multiple_choice", "short_answer"] },
+    { id: "T102", name: "测试用例设计方法（等价类、边界值）", summary: "等价类划分、边界值分析、判定表与因果图。", difficulty: "medium", high: true, types: ["multiple_choice", "case_analysis"] },
+    { id: "T103", name: "黑盒测试与白盒测试", summary: "黑盒/白盒方法对比与典型应用场景。", difficulty: "medium", high: false, types: ["short_answer", "true_false"] },
+    { id: "T104", name: "缺陷生命周期与缺陷管理", summary: "缺陷状态流转与缺陷管理系统。", difficulty: "easy", high: false, types: ["multiple_choice", "short_answer"] },
+    { id: "T105", name: "性能测试概述与压测指标", summary: "并发、吞吐量、响应时间、资源利用率。", difficulty: "hard", high: true, types: ["case_analysis", "coding"] },
+    { id: "T106", name: "自动化测试框架选型", summary: "Selenium/Pytest 等框架选型与适用条件。", difficulty: "hard", high: true, types: ["case_analysis", "short_answer"] },
+    { id: "T107", name: "回归测试策略", summary: "回归测试范围、优先级与自动化执行。", difficulty: "medium", high: false, types: ["short_answer"] },
+    { id: "T108", name: "测试文档与测试报告", summary: "测试计划、用例文档与缺陷报告规范。", difficulty: "easy", high: false, types: ["multiple_choice"] }
+  ];
+
+  let topics = JSON.parse(JSON.stringify(initialTopics));
+  let version = "v1.0";
+  let currentEdit = null;
+
+  const TYPE_LABELS = {
+    multiple_choice: "选择题", short_answer: "简答题", case_analysis: "案例分析",
+    true_false: "判断题", fill_blank: "填空题", coding: "设计/编码题"
+  };
+
+  function coverage() {
+    const total = topics.length;
+    const covered = topics.filter(t => t.types.length > 0).length;
+    return { total, covered, rate: total ? Math.round(covered / total * 1000) / 10 : 0 };
+  }
+
+  function renderAll() {
+    renderTopicTable();
+    renderCoverage();
+    renderPlan();
+    const cov = coverage();
+    document.getElementById("preview-total").textContent = cov.total;
+    document.getElementById("preview-covered").textContent = cov.covered;
+    document.getElementById("preview-rate").textContent = cov.rate + "%";
+    document.getElementById("sum-total").textContent = cov.total;
+    document.getElementById("sum-rate").textContent = cov.rate + "%";
+    document.getElementById("version-label").textContent = "outline_version：" + version;
+  }
+
+  function renderTopicTable() {
+    const body = document.getElementById("topic-body");
+    body.innerHTML = "";
+    topics.forEach((t, i) => {
+      const tr = document.createElement("tr");
+      const types = t.types.map(x => TYPE_LABELS[x] || x).join("、") || '<span class="badge warn">未覆盖</span>';
+      tr.innerHTML =
+        "<td>" + t.id + "</td>" +
+        "<td><b>" + t.name + "</b></td>" +
+        "<td>" + t.summary + "</td>" +
+        '<td><span class="badge ' + t.difficulty + '">' + {easy:"易", medium:"中", hard:"难"}[t.difficulty] + "</span></td>" +
+        "<td>" + (t.high ? '<span class="badge high">高频</span>' : "否") + "</td>" +
+        "<td>" + types + "</td>" +
+        '<td><button class="btn small" onclick="toggleEdit(' + i + ')">' + (currentEdit === i ? "收起" : "编辑") + "</button></td>";
+      body.appendChild(tr);
+      if (currentEdit === i) body.appendChild(buildEditRow(i));
+    });
+  }
+
+  function buildEditRow(i) {
+    const t = topics[i];
+    const tr = document.createElement("tr");
+    const td = document.createElement("td");
+    td.colSpan = 7;
+    td.innerHTML =
+      '<div class="edit-panel">' +
+        '<b>' + t.id + " " + t.name + "</b>" +
+        '<div class="row-2">' +
+          '<div><label style="font-weight:400">难度</label><select id="edit-difficulty-' + i + '">' +
+            '<option value="easy"' + (t.difficulty === "easy" ? " selected" : "") + '>简单</option>' +
+            '<option value="medium"' + (t.difficulty === "medium" ? " selected" : "") + '>中等</option>' +
+            '<option value="hard"' + (t.difficulty === "hard" ? " selected" : "") + '>困难</option>' +
+          "</select></div>" +
+          '<div><label style="font-weight:400">高频</label><select id="edit-high-' + i + '">' +
+            '<option value="true"' + (t.high ? " selected" : "") + '>是</option>' +
+            '<option value="false"' + (!t.high ? " selected" : "") + '>否</option>' +
+          "</select></div>" +
+        "</div>" +
+        "<label style=\"font-weight:400\">题型（取消勾选 = 不覆盖该知识点）</label>" +
+        '<div class="chips" id="edit-types-' + i + '">' +
+          Object.keys(TYPE_LABELS).map(k =>
+            '<span class="chip' + (t.types.includes(k) ? " on" : "") + '" data-type="' + k + '" onclick="toggleType(this,' + i + ')">' + TYPE_LABELS[k] + "</span>"
+          ).join("") +
+        "</div>" +
+        '<div class="actions">' +
+          '<button class="btn primary small" onclick="saveEdit(' + i + ')">保存并重新评估覆盖率</button>' +
+          '<button class="btn small" onclick="toggleEdit(-1)">取消</button>' +
+        "</div>" +
+      "</div>";
+    tr.appendChild(td);
+    return tr;
+  }
+
+  function toggleEdit(i) {
+    currentEdit = (currentEdit === i) ? null : i;
+    renderTopicTable();
+  }
+
+  function toggleType(el, i) {
+    el.classList.toggle("on");
+  }
+
+  function saveEdit(i) {
+    const t = topics[i];
+    t.difficulty = document.getElementById("edit-difficulty-" + i).value;
+    t.high = document.getElementById("edit-high-" + i).value === "true";
+    t.types = Array.from(document.querySelectorAll("#edit-types-" + i + " .chip.on"))
+      .map(c => c.dataset.type);
+    version = bumpVersion(version);
+    currentEdit = null;
+    renderAll();
+    showToast("已保存微调，覆盖率已重新评估（" + version + "）");
+  }
+
+  function renderCoverage() {
+    const cov = coverage();
+    const arc = document.getElementById("donut-arc");
+    const circumference = 2 * Math.PI * 60;
+    arc.setAttribute("stroke-dasharray", (cov.rate / 100 * circumference) + " " + circumference);
+    document.getElementById("donut-rate").innerHTML = cov.rate + "%<small>覆盖率</small>";
+    document.getElementById("cov-covered").textContent = cov.covered;
+    document.getElementById("cov-total").textContent = cov.total;
+    document.getElementById("cov-badge").innerHTML = cov.rate >= 85
+      ? '<span class="badge ok">已达阈值 ✓</span>'
+      : '<span class="badge warn">低于阈值，请补充题型映射</span>';
+  }
+
+  function renderPlan() {
+    const body = document.getElementById("plan-body");
+    const phases = ["基础梳理", "强化训练", "冲刺模拟"];
+    const chunks = [[0, 1, 2], [3, 4], [5, 6, 7]];
+    body.innerHTML = "";
+    chunks.forEach((idxArr, d) => {
+      const tr = document.createElement("tr");
+      const dateObj = new Date(2026, 11, 1 + d);
+      tr.innerHTML =
+        "<td>" + dateObj.getFullYear() + "-" + String(dateObj.getMonth() + 1).padStart(2, "0") + "-" + String(dateObj.getDate()).padStart(2, "0") + "</td>" +
+        "<td>" + phases[Math.min(d, 2)] + "</td>" +
+        "<td>" + idxArr.map(i => topics[i] ? topics[i].id : "").join("、") + "</td>" +
+        "<td>" + (10 + d * 2) + "</td>" +
+        "<td>90 分钟</td>";
+      body.appendChild(tr);
+    });
+  }
+
+  function bumpVersion(v) {
+    const m = v.match(/v(\d+)\.(\d+)/);
+    return m ? "v" + m[1] + "." + (Number(m[2]) + 1) : "v1.1";
+  }
+
+  function toggleChip(el) {
+    el.classList.toggle("on");
+  }
+
+  function showNav(nav) {
+    document.querySelectorAll("nav button").forEach(b => b.classList.remove("active"));
+    document.querySelector('nav button[data-nav="' + nav + '"]').classList.add("active");
+    if (nav === "input") {
+      document.getElementById("page-input").style.display = "grid";
+      document.getElementById("page-result").style.display = "none";
+    } else {
+      document.getElementById("page-input").style.display = "none";
+      document.getElementById("page-result").style.display = "block";
+    }
+    if (nav === "export") showTab("p7");
+  }
+
+  function showTab(name) {
+    document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === name));
+    document.querySelectorAll(".tab-panel").forEach(p => p.classList.toggle("active", p.id === name));
+  }
+
+  function startGenerate() {
+    const btn = document.getElementById("gen-btn");
+    btn.disabled = true;
+    const progress = document.getElementById("gen-progress");
+    const bar = document.getElementById("gen-bar");
+    const status = document.getElementById("gen-status");
+    progress.style.display = "block";
+    status.textContent = "正在调用本地 Ollama 模型解析大纲…（演示进度）";
+    let p = 0;
+    const timer = setInterval(() => {
+      p += 8 + Math.random() * 14;
+      if (p >= 100) {
+        p = 100;
+        clearInterval(timer);
+        bar.style.width = "100%";
+        status.textContent = "生成完成：知识点解析、题型模板、覆盖率与学习计划已就绪。";
+        setTimeout(() => {
+          progress.style.display = "none";
+          btn.disabled = false;
+          markStepDone();
+          showNav("result");
+          showToast("整合复习包草案已生成");
+        }, 400);
+      } else {
+        bar.style.width = p + "%";
+        status.textContent = "正在调用本地 Ollama 模型解析大纲… " + Math.round(p) + "%";
+      }
+    }, 180);
+  }
+
+  function markStepDone() {
+    ["step-1", "step-2", "step-3"].forEach(id => document.getElementById(id).classList.add("done"));
+    document.getElementById("step-1").classList.remove("active");
+    document.getElementById("step-2").classList.add("active");
+  }
+
+  function resetDemo() {
+    topics = JSON.parse(JSON.stringify(initialTopics));
+    version = "v1.0";
+    currentEdit = null;
+    renderAll();
+    showNav("input");
+    showToast("已重置为示例数据");
+  }
+
+  function doExport() {
+    const fmt = document.getElementById("export-format").value;
+    const label = { WORD: "Word", PDF: "PDF", MARKDOWN: "Markdown", JSON: "JSON" }[fmt];
+    showToast("已生成 " + label + " 文件，开始下载（" + version + "）");
+  }
+
+  function openHelp() { document.getElementById("help-modal").classList.add("show"); }
+  function closeHelp() { document.getElementById("help-modal").classList.remove("show"); }
+
+  let toastTimer = null;
+  function showToast(msg) {
+    const el = document.getElementById("toast");
+    el.textContent = msg;
+    el.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove("show"), 2600);
+  }
+
+  document.getElementById("help-modal").addEventListener("click", e => {
+    if (e.target.id === "help-modal") closeHelp();
+  });
+
+  renderAll();
+</script>
+</body>
+</html>
