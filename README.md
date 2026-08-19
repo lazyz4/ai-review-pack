@@ -109,3 +109,12 @@ ollama serve
 - [PRD（产品需求文档）](outputs/PRD.md)
 - [交互原型（设计稿）](outputs/prototype.html)
 - [真实前端应用](frontend/index.html)
+
+## 在线演示（GitHub Pages）
+
+网站已部署到：**https://lazyz4.github.io/ai-review-pack/**
+
+说明：GitHub Pages 只能托管静态前端，无法运行 Ollama（本地大模型）。页面加载时会自动检测
+本地后端（`http://127.0.0.1:8000`）并提示连接状态。由于浏览器安全策略（HTTPS 页面访问本地
+HTTP 服务可能被拦截），**真正生成复习包请直接打开 <http://127.0.0.1:8000> 使用**；
+在线链接适合分享界面演示、查看代码与 PRD。
