@@ -9,6 +9,8 @@
 - 多科目自选：软件测试、数据结构、操作系统、计算机网络、高等数学、大学英语等 + 自定义科目
 - 文件上传：`.pptx` / `.pdf` / `.docx` / `.txt` / `.md`（20MB 以内），自动提取文本
 - 真实 Ollama 生成：默认 `qwen2.5:3b`（中文好、CPU 快），模型缺失时自动选择本机可用模型
+- BYOK 自由选择：页面可切换 DeepSeek / OpenAI / Kimi / 硅基流动 / 智谱 / 本地 Ollama / 自定义，
+  每个用户填自己的 API Key（只存自己浏览器、仅本次调用），互不扣费
 - 结果可微调：修改知识点难度/题型/高频标记后调用 `edit-feedback` 重新评估覆盖率
 - 多格式导出：Word / PDF / Markdown / JSON，支持下载
 - Ollama 不可用时自动降级为启发式生成，服务不中断
@@ -26,7 +28,7 @@
 │   ├── models/course.py         # Course / Topic ORM 模型
 │   ├── schemas/course.py        # Pydantic 请求/响应模型
 │   ├── services/
-│   │   ├── ollama_client.py     # Ollama 客户端（自动选择模型）
+│   │   ├── llm_client.py        # 通用 LLM 客户端（多服务商 + BYOK）
 │   │   ├── file_parser.py       # PPT/PDF/DOCX/TXT 文本提取
 │   │   └── review_pack.py       # 生成管线（LLM + 启发式降级）
 │   ├── store.py                 # 内存草案仓库（按 outline_version）
@@ -73,11 +75,25 @@ ollama serve
 
 | 变量 | 默认值 | 说明 |
 | --- | --- | --- |
-| `OLLAMA_BASE_URL` | `http://127.0.0.1:11434/v1` | Ollama OpenAI 兼容端点 |
-| `OLLAMA_MODEL` | `qwen2.5:3b` | 首选模型；未安装时自动选择本机可用模型 |
-| `OLLAMA_TIMEOUT` | `600` | 单次生成超时（秒） |
+| `LLM_PROVIDER` | `ollama` | 服务端默认服务商：ollama / deepseek / openai / moonshot / siliconflow / zhipu / custom |
+| `LLM_API_KEY` | 空 | 服务端默认 API Key（你自己的 Key；云端部署后仍建议让用户填自己的 Key） |
+| `LLM_API_BASE` | 按服务商预设 | 自定义服务商的 Base URL（custom 时必填） |
+| `LLM_MODEL` | 按服务商预设 | 默认模型名 |
+| `LLM_TIMEOUT` | `600` | 单次生成超时（秒） |
 | `CORS_ORIGINS` | `http://localhost:5173,...` | 逗号分隔的 CORS 白名单 |
 | `EXPORT_DIR` | `outputs/exports` | 导出文件目录 |
+
+## BYOK：每个用户用自己的 API Key
+
+页面“模型设置”里选择服务商并填写自己的 API Key（保存在浏览器 localStorage），
+生成请求会通过请求头携带（`X-LLM-Provider` / `X-API-Key` / `X-LLM-Base-URL` / `X-LLM-Model`）。
+后端**只转发、不存储**，优先使用请求带来的 Key；没带 Key 时使用服务端 `LLM_API_KEY`；
+都没配且选了云端服务商时，会明确提示填 Key，而不是悄悄降级。
+
+因此：
+- 你（部署者）本地使用：页面填自己的 Key 或服务端设 `LLM_API_KEY`，都可以；
+- 别人使用你的部署：他们必须填自己的 Key，花他们自己的额度，你的余额不受影响；
+- 本地 Ollama：完全免费、无需 Key，但只在运行后端的电脑上可用。
 
 ## API
 
@@ -101,7 +117,7 @@ ollama serve
 
 - **多科目**：请求体新增 `subject` / `semester` 字段，LLM 提示词按科目标签适配术语。
 - **文件解析**：`file_parser.py` 支持 PPTX（文本框+表格）、PDF（pypdf）、DOCX（python-docx）、TXT/MD。
-- **降级策略**：Ollama 两次生成失败或不可用时，自动返回启发式生成结果，并提示启动 Ollama。
+- **降级策略**：本地 Ollama 两次生成失败或不可用时，自动返回启发式生成结果；云端服务商出错时如实报错（如 Key 无效）。
 - **版本追踪**：`outline_version` 每次微调递增（v1.0 → v1.1），草案保存在内存仓库。
 
 ## 交付物
@@ -117,4 +133,6 @@ ollama serve
 说明：GitHub Pages 只能托管静态前端，无法运行 Ollama（本地大模型）。页面加载时会自动检测
 本地后端（`http://127.0.0.1:8000`）并提示连接状态。由于浏览器安全策略（HTTPS 页面访问本地
 HTTP 服务可能被拦截），**真正生成复习包请直接打开 <http://127.0.0.1:8000> 使用**；
-在线链接适合分享界面演示、查看代码与 PRD。
+在线链接适合分享界面演示、查看代码与 PRD。BYOK 的 API Key 也是由你的后端转发给大模型服务商
+（浏览器无法直接调用 DeepSeek 等 API），所以**完整功能始终需要一个可达的后端实例**
+（本地运行，或部署到云服务器/免费容器平台）。

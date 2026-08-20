@@ -3,7 +3,9 @@
 支持两种输入：
 - ``POST /api/v1/generate-advance``：直接提交大纲文本；
 - ``POST /api/v1/generate-advance/upload``：上传 PPT/PDF/DOCX/TXT 文件。
-两者都会调用生成管线（真实调用本地 Ollama）返回整合复习包草案。
+两者都会调用生成管线返回整合复习包草案。生成管线支持 BYOK：
+通过请求头 ``X-LLM-Provider`` / ``X-API-Key`` / ``X-LLM-Base-URL`` / ``X-LLM-Model``
+让每个用户使用自己的服务商与 API Key（不传则用服务端配置或本地 Ollama）。
 """
 
 from __future__ import annotations
@@ -14,6 +16,7 @@ from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 
 from backend.schemas.course import GenerateAdvanceRequest, GenerateAdvanceResponse, TopicPreferences
 from backend.services.file_parser import extract_text
+from backend.services.llm_client import LLMError, overrides_from_headers
 from backend.services.review_pack import generate_review_pack
 from backend.store import save_draft
 
@@ -26,7 +29,11 @@ MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 async def generate_advance(payload: GenerateAdvanceRequest, request: Request) -> GenerateAdvanceResponse:
     """提交大纲文本，解析并生成复习包草案（知识点、模板、示例题、覆盖率、学习计划）。"""
     llm = request.app.state.llm
-    response = await generate_review_pack(payload, llm)
+    overrides = overrides_from_headers(request.headers)
+    try:
+        response = await generate_review_pack(payload, llm, overrides)
+    except LLMError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
     save_draft(response.outline_version, payload, response)
     return response
 
@@ -82,6 +89,10 @@ async def generate_advance_upload(
             preferred_question_types=qtype_list,
         ),
     )
-    response = await generate_review_pack(payload, request.app.state.llm)
+    overrides = overrides_from_headers(request.headers)
+    try:
+        response = await generate_review_pack(payload, request.app.state.llm, overrides)
+    except LLMError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
     save_draft(response.outline_version, payload, response)
     return response

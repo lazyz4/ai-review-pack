@@ -29,7 +29,7 @@ from backend.schemas.course import (
     TopicEdit,
     TopicOut,
 )
-from backend.services.ollama_client import OllamaClient
+from backend.services.llm_client import LLMClient, LLMError, PROVIDERS
 
 logger = logging.getLogger("review-pack.pipeline")
 
@@ -136,35 +136,74 @@ JSON 结构如下：
 MAX_OUTLINE_CHARS = 12000
 
 
-async def generate_review_pack(request: GenerateAdvanceRequest, llm: OllamaClient) -> GenerateAdvanceResponse:
-    """生成整合复习包草案：优先 LLM，失败时自动降级。"""
-    if await llm.is_available():
-        messages: list[dict[str, str]] = [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": _build_user_prompt(request)},
-        ]
-        for attempt in range(2):
-            raw_text = ""
-            try:
-                raw_text = await llm.chat(messages, temperature=0.3, max_tokens=2048)
-                data = _extract_json(raw_text)
-                result = _response_from_data(request, data)
-                logger.info(
-                    "Ollama 生成成功：%d 个知识点，%d 道示例题，覆盖率 %.0f%%",
-                    len(result.topics),
-                    len(result.generated_questions),
-                    result.coverage_metrics.coverage_rate * 100,
+async def generate_review_pack(
+    request: GenerateAdvanceRequest,
+    llm: LLMClient,
+    overrides: dict[str, str] | None = None,
+) -> GenerateAdvanceResponse:
+    """生成整合复习包草案。
+
+    优先使用请求级 BYOK 配置（用户自己的 API Key / 服务商 / 模型）；
+    云端服务商缺 Key 或调用失败时直接报错；本地 Ollama 不可用时自动降级为启发式生成。
+    """
+    overrides = overrides or {}
+    provider = (overrides.get("provider") or llm.provider or "ollama").lower()
+    api_key = overrides.get("api_key") or llm.api_key or ""
+
+    if provider == "custom" and not overrides.get("base_url"):
+        raise LLMError("自定义服务商需要填写 Base URL（例如 https://api.example.com/v1）")
+    if provider not in PROVIDERS and provider != "custom":
+        raise LLMError(f"未知服务商：{provider}")
+    if provider != "ollama" and provider != "custom" and not api_key:
+        label = PROVIDERS.get(provider, {}).get("label", provider)
+        raise LLMError(
+            f"未配置 {label} API Key：请在页面“模型设置”中填写你自己的 Key"
+            "（BYOK 模式：每个用户用自己的 Key，互不扣费），或服务端设置 LLM_API_KEY 环境变量"
+        )
+
+    if provider == "ollama":
+        ok, message, _ = await llm.verify(
+            provider="ollama",
+            base_url=overrides.get("base_url"),
+            model=overrides.get("model"),
+        )
+        if not ok:
+            logger.warning("Ollama 不可用，切换到启发式生成：%s", message)
+            return _fallback_response(request)
+
+    messages: list[dict[str, str]] = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": _build_user_prompt(request)},
+    ]
+    for attempt in range(2):
+        raw_text = ""
+        try:
+            raw_text = await llm.chat(messages, temperature=0.3, max_tokens=2048, **overrides)
+            data = _extract_json(raw_text)
+            result = _response_from_data(request, data)
+            logger.info(
+                "LLM 生成成功（%s）：%d 个知识点，%d 道示例题，覆盖率 %.0f%%",
+                provider,
+                len(result.topics),
+                len(result.generated_questions),
+                result.coverage_metrics.coverage_rate * 100,
+            )
+            return result
+        except LLMError as exc:
+            if provider != "ollama":
+                raise
+            logger.warning("Ollama 第 %d 次生成失败：%s", attempt + 1, exc)
+        except Exception as exc:  # noqa: BLE001 - 降级路径需要捕获一切解析异常
+            logger.warning("第 %d 次生成解析失败：%s", attempt + 1, exc)
+            if attempt == 0 and raw_text:
+                messages.append({"role": "assistant", "content": raw_text[:3000]})
+                messages.append(
+                    {"role": "user", "content": "上次输出不是合法 JSON。请只输出一个合法 JSON 对象，不要 Markdown 代码块。"}
                 )
-                return result
-            except Exception as exc:  # noqa: BLE001 - 降级路径需要捕获一切解析异常
-                logger.warning("Ollama 第 %d 次生成失败：%s", attempt + 1, exc)
-                if attempt == 0 and raw_text:
-                    messages.append({"role": "assistant", "content": raw_text[:3000]})
-                    messages.append(
-                        {"role": "user", "content": "上次输出不是合法 JSON。请只输出一个合法 JSON 对象，不要 Markdown 代码块。"}
-                    )
-        logger.warning("Ollama 两次生成均失败，已切换到启发式生成")
-    return _fallback_response(request)
+    if provider == "ollama":
+        logger.warning("Ollama 两次生成失败，切换到启发式生成")
+        return _fallback_response(request)
+    raise LLMError("模型生成失败，请稍后重试或更换模型/服务商", status_code=502)
 
 
 def apply_topic_edits(draft: GenerateAdvanceResponse, edits: list[TopicEdit]) -> GenerateAdvanceResponse:

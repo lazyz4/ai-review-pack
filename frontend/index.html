@@ -234,8 +234,33 @@
         <span class="chip" data-format="JSON">导入模板（JSON）</span>
       </div>
 
+      <details id="llm-settings" style="margin-top:16px">
+        <summary>模型设置（BYOK：每个人填自己的 API Key，互不扣费）</summary>
+        <label for="llm-provider">服务商</label>
+        <select id="llm-provider" onchange="onProviderChange(true)">
+          <option value="ollama">本地 Ollama（免费，无需 Key）</option>
+          <option value="deepseek">DeepSeek（便宜，推荐）</option>
+          <option value="openai">OpenAI</option>
+          <option value="moonshot">Moonshot Kimi</option>
+          <option value="siliconflow">硅基流动</option>
+          <option value="zhipu">智谱 GLM</option>
+          <option value="custom">自定义（任意 OpenAI 兼容）</option>
+        </select>
+        <label for="llm-api-key">API Key（只保存在你自己的浏览器，仅用于本次调用）</label>
+        <input id="llm-api-key" type="password" placeholder="sk-..." autocomplete="off">
+        <div class="row-2">
+          <div><label for="llm-base-url">Base URL</label><input id="llm-base-url" placeholder="https://api.deepseek.com/v1"></div>
+          <div><label for="llm-model">模型</label><input id="llm-model" placeholder="deepseek-chat"></div>
+        </div>
+        <div style="margin-top:10px;display:flex;gap:8px">
+          <button class="btn small primary" onclick="saveLlmSettings()">保存到本机</button>
+          <button class="btn small" onclick="clearLlmSettings()">清除</button>
+        </div>
+        <div class="hint" id="llm-settings-hint">选择服务商后 Base URL 与模型会自动填充；Key 不会上传到服务器。</div>
+      </details>
+
       <div class="summary-block" id="preview-summary" style="margin-top:16px">
-        将把大纲提交给本地 Ollama 模型（qwen2.5:3b / 自动选择），
+        将把大纲提交给你选择的模型服务商（默认本地 Ollama；也可用 DeepSeek 等云端 API），
         分析后生成知识点清单、题型模板、示例题、覆盖率统计与学习计划。
       </div>
       <div class="progress" id="gen-progress"><div class="progress-bar" id="gen-bar"></div></div>
@@ -364,6 +389,15 @@
     true_false: "判断题", fill_blank: "填空题", coding: "设计/证明/计算题"
   };
   const DIFF_LABELS = { easy: "简单", medium: "中等", hard: "困难" };
+  const PROVIDER_PRESETS = {
+    ollama: { label: "本地 Ollama", base: "http://127.0.0.1:11434/v1", model: "qwen2.5:3b" },
+    deepseek: { label: "DeepSeek", base: "https://api.deepseek.com/v1", model: "deepseek-chat" },
+    openai: { label: "OpenAI", base: "https://api.openai.com/v1", model: "gpt-4o-mini" },
+    moonshot: { label: "Moonshot Kimi", base: "https://api.moonshot.cn/v1", model: "moonshot-v1-8k" },
+    siliconflow: { label: "硅基流动", base: "https://api.siliconflow.cn/v1", model: "Qwen/Qwen2.5-7B-Instruct" },
+    zhipu: { label: "智谱 GLM", base: "https://open.bigmodel.cn/api/paas/v4", model: "glm-4-flash" },
+    custom: { label: "自定义", base: "", model: "" }
+  };
 
   let draft = null;
   let editingTopicId = null;
@@ -377,6 +411,72 @@
     const banner = $("deploy-banner");
     banner.innerHTML = text;
     banner.style.display = "block";
+  }
+
+  function loadLlmSettings() {
+    try {
+      const saved = JSON.parse(localStorage.getItem("llm_settings") || "{}");
+      if (saved.provider) {
+        $("llm-provider").value = saved.provider;
+        $("llm-api-key").value = saved.apiKey || "";
+        $("llm-base-url").value = saved.baseUrl || "";
+        $("llm-model").value = saved.model || "";
+      }
+    } catch (e) { /* 忽略损坏的本地设置 */ }
+    onProviderChange(false);
+  }
+
+  function onProviderChange(autoFill) {
+    const provider = $("llm-provider").value;
+    const preset = PROVIDER_PRESETS[provider];
+    if (autoFill && preset) {
+      $("llm-base-url").value = preset.base;
+      $("llm-model").value = preset.model;
+    }
+    if (provider === "ollama") {
+      $("llm-api-key").value = "";
+      $("llm-api-key").disabled = true;
+      $("llm-settings-hint").textContent = "本地 Ollama 不需要 Key，但仅在你自己的电脑上运行后端时有效（云端部署时请选择云端服务商）。";
+    } else {
+      $("llm-api-key").disabled = false;
+      $("llm-settings-hint").textContent = provider === "custom"
+        ? "自定义模式：填写任意 OpenAI 兼容服务的 Base URL 与模型名，Key 可选。"
+        : "选择服务商后 Base URL 与模型自动填充；Key 只保存在你的浏览器，仅用于本次调用。";
+    }
+  }
+
+  function saveLlmSettings() {
+    const settings = {
+      provider: $("llm-provider").value,
+      apiKey: $("llm-api-key").value.trim(),
+      baseUrl: $("llm-base-url").value.trim(),
+      model: $("llm-model").value.trim()
+    };
+    localStorage.setItem("llm_settings", JSON.stringify(settings));
+    toast("模型设置已保存到本机（仅你的浏览器可见）");
+    checkHealth();
+  }
+
+  function clearLlmSettings() {
+    localStorage.removeItem("llm_settings");
+    $("llm-provider").value = "ollama";
+    $("llm-api-key").value = "";
+    onProviderChange(true);
+    toast("已清除模型设置");
+    checkHealth();
+  }
+
+  function llmHeaders() {
+    const headers = {};
+    const provider = $("llm-provider").value;
+    const apiKey = $("llm-api-key").value.trim();
+    const baseUrl = $("llm-base-url").value.trim();
+    const model = $("llm-model").value.trim();
+    if (provider) headers["X-LLM-Provider"] = provider;
+    if (apiKey) headers["X-API-Key"] = apiKey;
+    if (baseUrl) headers["X-LLM-Base-URL"] = baseUrl;
+    if (model) headers["X-LLM-Model"] = model;
+    return headers;
   }
 
   const $ = id => document.getElementById(id);
@@ -418,18 +518,23 @@
     const candidates = ["", "http://127.0.0.1:8000"];
     for (const root of candidates) {
       try {
-        const resp = await fetch(root + "/api/v1/health", { mode: "cors" });
+        const resp = await fetch(root + "/api/v1/health", { mode: "cors", headers: llmHeaders() });
         if (!resp.ok) continue;
         const data = await resp.json();
-        if (!data || data.ollama_available === undefined) continue;
+        if (!data || data.status !== "ok") continue;
         API_ROOT = root;
         const pill = $("ollama-status");
-        if (data.ollama_available) {
+        const label = PROVIDER_PRESETS[data.provider] ? PROVIDER_PRESETS[data.provider].label : (data.provider || "LLM");
+        if (data.configured) {
           pill.className = "ollama-pill on";
-          pill.textContent = "Ollama 已连接 · " + data.model;
+          pill.textContent = label + " 已连接 · " + data.model;
         } else {
           pill.className = "ollama-pill off";
-          pill.textContent = "Ollama 未连接（将使用本地启发式生成）";
+          pill.textContent = label + "：" + (data.message || "未连接");
+        }
+        if (!localStorage.getItem("llm_settings") && data.provider && PROVIDER_PRESETS[data.provider]) {
+          $("llm-provider").value = data.provider;
+          onProviderChange(true);
         }
         if (root && window.location.protocol === "https:") {
           showBanner(
@@ -490,7 +595,7 @@
     $("gen-progress").style.display = active ? "block" : "none";
     $("gen-bar").style.width = "0%";
     $("gen-status").className = "status";
-    $("gen-status").textContent = active ? "正在调用本地 Ollama 模型分析与生成…（首次可能需要 1-3 分钟，请勿关闭页面）" : "准备就绪。";
+    $("gen-status").textContent = active ? "正在调用所选模型分析与生成…（首次可能需要 1-3 分钟，请勿关闭页面）" : "准备就绪。";
   }
 
   async function generateFromText() {
@@ -510,7 +615,9 @@
       }
     };
     const resp = await fetch(apiUrl("/generate-advance"), {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
+      method: "POST",
+      headers: Object.assign({ "Content-Type": "application/json" }, llmHeaders()),
+      body: JSON.stringify(payload)
     });
     return handleResponse(resp);
   }
@@ -526,7 +633,7 @@
     form.append("duration_minutes", String(Number($("duration").value) || 120));
     form.append("coverage_priority", $("coverage-priority").value);
     form.append("preferred_question_types", selectedTypes().join(","));
-    const resp = await fetch(apiUrl("/generate-advance/upload"), { method: "POST", body: form });
+    const resp = await fetch(apiUrl("/generate-advance/upload"), { method: "POST", headers: llmHeaders(), body: form });
     return handleResponse(resp);
   }
 
@@ -786,6 +893,7 @@
   }
 
   checkHealth();
+  loadLlmSettings();
 </script>
 </body>
 </html>

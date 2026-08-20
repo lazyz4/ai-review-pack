@@ -2,7 +2,7 @@
 
 - 导入所有路由（generate / edit-feedback / export）
 - 配置 CORS
-- 配置应用生命周期：启动时初始化共享的 Ollama 客户端并自动选择可用模型
+- 配置应用生命周期：启动时初始化共享的 LLM 客户端（云端 API / 本地 Ollama）
 - 托管真实前端页面（frontend/index.html）
 """
 
@@ -14,12 +14,14 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from typing import Any
+
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from backend.api import edit_feedback, export, generate
-from backend.services.ollama_client import OllamaClient
+from backend.services.llm_client import LLMClient, overrides_from_headers
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 logger = logging.getLogger("review-pack.main")
@@ -52,15 +54,23 @@ def create_app() -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        """启动时创建共享 Ollama 客户端，关闭时释放资源。"""
-        llm = OllamaClient(
-            base_url=os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434/v1"),
-            model=os.getenv("OLLAMA_MODEL", "qwen2.5:3b"),
-            timeout=float(os.getenv("OLLAMA_TIMEOUT", "600")),
+        """启动时创建共享 LLM 客户端，关闭时释放资源。"""
+        llm = LLMClient(
+            provider=os.getenv("LLM_PROVIDER", "ollama"),
+            api_key=os.getenv("LLM_API_KEY", ""),
+            base_url=os.getenv("LLM_API_BASE", ""),
+            model=os.getenv("LLM_MODEL", ""),
+            timeout=float(os.getenv("LLM_TIMEOUT", "600")),
         )
-        llm.effective_model = await llm.resolve_effective_model()
+        if llm.provider == "ollama":
+            llm.effective_model = await llm.resolve_effective_model()
         app.state.llm = llm
-        logger.info("Ollama 客户端已就绪：model=%s base_url=%s", llm.effective_model, llm.base_url)
+        logger.info(
+            "LLM 客户端已就绪：provider=%s model=%s server_key=%s",
+            llm.provider,
+            llm.effective_model or llm.model,
+            "已配置" if llm.api_key else "未配置",
+        )
         yield
         logger.info("应用正在关闭。")
 
@@ -85,11 +95,20 @@ def create_app() -> FastAPI:
     app.include_router(export.router, prefix=f"/api/{API_VERSION}")
 
     @app.get(f"/api/{API_VERSION}/health", tags=["system"])
-    async def health() -> dict[str, str | bool]:
-        """健康检查：返回服务状态、Ollama 可用性与实际使用模型。"""
-        llm: OllamaClient = app.state.llm
-        available = await llm.is_available()
-        return {"status": "ok", "ollama_available": available, "model": llm.effective_model or llm.model}
+    async def health(request: Request) -> dict[str, Any]:
+        """健康检查：返回服务状态、所选服务商连通性（支持 BYOK 请求头）。"""
+        llm: LLMClient = request.app.state.llm
+        overrides = overrides_from_headers(request.headers)
+        configured, message, model = await llm.verify(**overrides)
+        provider = overrides.get("provider") or llm.provider
+        return {
+            "status": "ok",
+            "configured": configured,
+            "provider": provider,
+            "model": model,
+            "message": message,
+            "server_api_key_set": bool(llm.api_key),
+        }
 
     FRONTEND_DIR.mkdir(parents=True, exist_ok=True)
     app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
