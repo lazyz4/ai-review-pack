@@ -57,20 +57,26 @@ py -m venv .venv
 
 本地没有配置 DeepSeek Key 时，程序自动使用本地 Ollama（需先 `ollama pull qwen2.5:3b`）。
 
-## 云部署（Render，提供公开网址）
+## 云部署（Railway，提供公开网址）
 
-代码已包含 [Dockerfile](Dockerfile) 与 [render.yaml](render.yaml)，一键部署：
+代码已包含 [Dockerfile](Dockerfile) 与 [railway.json](railway.json)，Railway 会自动识别。
 
-1. 打开 Render 部署入口：**<https://render.com/deploy?repo=https://github.com/lazyz4/ai-review-pack>**
-2. 用 GitHub 账号登录 Render，选择仓库 `lazyz4/ai-review-pack`；
-3. 在环境变量中填写你自己的 DeepSeek Key（不在代码里写死）：
+方式一（推荐，免绑卡）：打开模板部署入口
+**<https://railway.app/new/template?template=https://github.com/lazyz4/ai-review-pack>**
+
+方式二：打开 <https://railway.app/new> → Deploy from GitHub repo → 选择 `lazyz4/ai-review-pack`。
+
+部署步骤：
+1. 用 GitHub 账号登录 Railway，点击 Deploy；
+2. 构建完成后进入项目 → **Variables**，添加：
    - `MY_DEEPSEEK_KEY` = 你的 `sk-...`（注意：不要在代码/仓库中出现这个 Key）
-   - `DEMO_USERNAME` / `DEMO_PASSWORD`：演示账号（默认 demo / demo123）
-4. 点击 Deploy，几分钟后得到公开网址，形如 `https://ai-review-pack.onrender.com`。
+   - `DEMO_USERNAME` = `demo`（可改）
+   - `DEMO_PASSWORD` = 你自己设的密码（可改）
+3. 部署成功后，在 **Settings → Networking** 里把公网域名（`*.up.railway.app`）生成出来；
+4. 打开该网址即可使用，用演示账号或注册账号登录。
 
-部署后：
-- 任何人打开该网址即可使用，演示账号消耗的是你配置的 DeepSeek Key（可在后台调低额度/限额）；
-- 别人注册账号后填写**自己的** Key，花他们自己的钱。
+> Railway 免费额度（约 $5/月）一般无需绑卡；若平台要求绑卡，备选方案是
+> Hugging Face Spaces（同样免绑卡）或本地部署。
 
 ## 环境变量
 
