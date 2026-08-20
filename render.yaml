@@ -12,6 +12,6 @@ services:
       - key: DEMO_USERNAME
         value: demo
       - key: DEMO_PASSWORD
-        value: demo123
+        sync: false
       - key: DATABASE_PATH
         value: /app/backend/data/users.db

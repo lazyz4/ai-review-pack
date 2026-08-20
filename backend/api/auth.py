@@ -1,6 +1,6 @@
 """认证路由：注册 / 登录 / 当前用户。
 
-演示账号（默认 demo / demo123）直接使用服务端环境变量中的 DeepSeek Key；
+演示账号（用户名 demo，密码由环境变量 DEMO_PASSWORD 设置）直接使用服务端环境变量中的 DeepSeek Key；
 注册账号在前端填写自己的 API Key（BYOK），按请求头发送、后端不存储。
 """
 
@@ -19,7 +19,7 @@ def require_user(authorization: str | None = Header(None)) -> dict:
     token = authorization[7:].strip() if authorization and authorization.lower().startswith("bearer ") else ""
     user = auth_service.get_user(token)
     if user is None:
-        raise HTTPException(status_code=401, detail="请先登录（演示账号：demo / demo123）")
+        raise HTTPException(status_code=401, detail="请先登录（演示账号：demo）")
     return user
 
 

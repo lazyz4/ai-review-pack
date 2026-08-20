@@ -1,7 +1,7 @@
 """账号与会话服务（SQLite，标准库实现）。
 
-支持注册、登录与 Token 会话。内置演示账号（demo / demo123，可用环境变量
-DEMO_USERNAME / DEMO_PASSWORD 覆盖）。密码使用 PBKDF2 加盐哈希存储，
+支持注册、登录与 Token 会话。内置演示账号（用户名 demo，密码由环境变量
+DEMO_PASSWORD 设置；未设置时默认 demo123，仅用于本地开发）。密码使用 PBKDF2 加盐哈希存储，
 演示账号直接使用服务端环境变量中的 API Key；注册账号在前端填写自己的
 API Key（BYOK），后端不存储任何用户的 Key。
 """

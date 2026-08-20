@@ -11,7 +11,7 @@ AI 分析后生成知识点清单、题型模板、示例题、覆盖率统计�
 
 - 多科目自选：软件测试、数据结构、操作系统、计算机网络、高等数学、大学英语等 + 自定义科目
 - 文件上传：`.pptx` / `.pdf` / `.docx` / `.txt` / `.md`（20MB 以内），自动提取文本
-- 账号体系：演示账号（demo / demo123）直接使用部署方的 DeepSeek Key；注册账号填写自己的 Key（BYOK）
+- 账号体系：演示账号（demo，密码由部署方在环境变量 `DEMO_PASSWORD` 中设置）直接使用部署方的 DeepSeek Key；注册账号填写自己的 Key（BYOK）
 - BYOK 自由选择：DeepSeek / OpenAI / Kimi / 硅基流动 / 智谱 / 本地 Ollama / 自定义
 - 结果可微调：修改知识点难度/题型/高频标记后重新评估覆盖率
 - 多格式导出：Word / PDF / Markdown / JSON
@@ -53,7 +53,7 @@ py -m venv .venv
 浏览器打开 <http://127.0.0.1:8000>，使用演示账号登录：
 
 - 用户名：`demo`
-- 密码：`demo123`
+- 密码：部署时在环境变量 `DEMO_PASSWORD` 中设置（本地开发默认 `demo123`）
 
 本地没有配置 DeepSeek Key 时，程序自动使用本地 Ollama（需先 `ollama pull qwen2.5:3b`）。
 
@@ -86,7 +86,7 @@ py -m venv .venv
 | `LLM_PROVIDER` | 自动 | 显式指定服务商：deepseek / openai / moonshot / siliconflow / zhipu / ollama / custom |
 | `LLM_API_BASE` / `LLM_MODEL` | 按服务商预设 | 自定义服务商地址与模型 |
 | `LLM_TIMEOUT` | `600` | 单次生成超时（秒） |
-| `DEMO_USERNAME` / `DEMO_PASSWORD` | demo / demo123 | 演示账号（写入数据库前生效） |
+| `DEMO_USERNAME` / `DEMO_PASSWORD` | demo / 由你设置 | 演示账号（写入数据库前生效；部署时必须自定义密码） |
 | `DATABASE_PATH` | `backend/data/users.db` | SQLite 数据库路径 |
 | `CORS_ORIGINS` | 本地开发来源 | 逗号分隔的 CORS 白名单 |
 | `EXPORT_DIR` | `outputs/exports` | 导出文件目录 |
@@ -99,7 +99,7 @@ py -m venv .venv
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | POST | `/api/v1/auth/register` | 注册账号（返回 Token） |
-| POST | `/api/v1/auth/login` | 登录（演示账号 demo / demo123） |
+| POST | `/api/v1/auth/login` | 登录（演示账号 demo，密码由部署方设置） |
 | GET | `/api/v1/auth/me` | 当前用户信息（需 Bearer Token） |
 | POST | `/api/v1/generate-advance` | 文本生成复习包（需登录） |
 | POST | `/api/v1/generate-advance/upload` | 文件上传生成（需登录） |
@@ -110,7 +110,7 @@ py -m venv .venv
 
 ## BYOK 与账号说明
 
-- **演示账号（demo / demo123）**：直接使用部署方在环境变量里配置的 DeepSeek Key，方便体验；
+- **演示账号（demo）**：直接使用部署方在环境变量里配置的 DeepSeek Key，方便体验；密码由部署方在 `DEMO_PASSWORD` 中设置，不在前端/仓库中公开；
 - **注册账号**：登录后页面弹出 API Key 输入框，Key 保存在该用户自己的浏览器（localStorage），
   生成请求通过 `X-API-Key` 等请求头转发，后端只转发、不存储；
 - 云端服务商缺 Key 时明确提示填 Key；Key 无效时返回服务商的具体报错。
