@@ -135,6 +135,16 @@
   .toast.show { opacity: 1; }
   .banner { background: #fef3c7; color: #92400e; padding: 10px 20px; font-size: 13px; text-align: center; border-bottom: 1px solid #fcd34d; }
   .banner b { color: #78350f; }
+  .modal-mask { position: fixed; inset: 0; background: rgba(15, 23, 42, .45); display: none; place-items: center; z-index: 40; padding: 20px; }
+  .modal-mask.show { display: grid; }
+  .modal { background: #fff; border-radius: 14px; max-width: 420px; width: 100%; padding: 22px; box-shadow: 0 20px 50px rgba(0,0,0,.2); }
+  .modal h3 { margin-bottom: 10px; }
+  .modal .actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  .auth-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+  .auth-tab { flex: 1; text-align: center; padding: 8px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; font-size: 14px; background: #fff; }
+  .auth-tab.active { background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 500; }
+  .link-btn { background: none; border: none; color: var(--primary); cursor: pointer; font-size: 13px; padding: 0; text-decoration: underline; }
+  #user-info { font-size: 13px; color: var(--muted); }
   .version { display: inline-block; font-size: 12px; color: var(--muted); background: #f1f5f9; border-radius: 999px; padding: 3px 10px; }
   .empty { color: var(--muted); font-size: 13px; padding: 8px 0; }
   details summary { cursor: pointer; font-size: 14px; margin-top: 14px; color: var(--primary); }
@@ -145,6 +155,9 @@
   <div class="brand"><span class="brand-logo">AI</span><span>AI 期末复习整合包（多科目）</span></div>
   <div class="header-right">
     <span class="ollama-pill" id="ollama-status">正在检测 Ollama…</span>
+    <span id="user-info"></span>
+    <button class="btn small" id="login-btn" style="display:none" onclick="showAuth()">登录 / 注册</button>
+    <button class="btn small" id="logout-btn" style="display:none" onclick="logout()">退出</button>
     <nav>
       <button data-nav="input" class="active" onclick="showNav('input')">输入大纲</button>
       <button data-nav="result" onclick="showNav('result')">生成结果</button>
@@ -260,16 +273,17 @@
       </details>
 
       <div class="summary-block" id="preview-summary" style="margin-top:16px">
-        将把大纲提交给你选择的模型服务商（默认本地 Ollama；也可用 DeepSeek 等云端 API），
+        将把大纲提交给你选择的模型服务商（部署版默认 DeepSeek，本地开发默认 Ollama；
+        注册账号可在模型设置里填自己的 Key），
         分析后生成知识点清单、题型模板、示例题、覆盖率统计与学习计划。
       </div>
       <div class="progress" id="gen-progress"><div class="progress-bar" id="gen-bar"></div></div>
       <div class="status" id="gen-status">准备就绪。</div>
       <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
-        <button class="btn primary" id="gen-btn" onclick="startGenerate()">开始生成（调用 Ollama）</button>
+        <button class="btn primary" id="gen-btn" onclick="startGenerate()">开始生成</button>
         <button class="btn" onclick="clearForm()">清空</button>
       </div>
-      <div class="hint">真实调用本地 Ollama API 分析与生成，首次生成可能需要 1-3 分钟。</div>
+      <div class="hint">需要先登录；演示账号使用服务端 DeepSeek Key，注册账号使用你自己的 Key。首次生成可能需要 1-3 分钟。</div>
     </div>
   </section>
 
@@ -381,6 +395,41 @@
   </section>
 </main>
 
+<div class="modal-mask" id="auth-modal">
+  <div class="modal">
+    <h3 id="auth-title">登录</h3>
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tab-login" onclick="switchAuth('login')">登录</button>
+      <button class="auth-tab" id="tab-register" onclick="switchAuth('register')">注册</button>
+    </div>
+    <label for="auth-username">用户名</label>
+    <input id="auth-username" autocomplete="username">
+    <label for="auth-password">密码</label>
+    <input id="auth-password" type="password" autocomplete="current-password">
+    <div class="actions">
+      <button class="btn primary" id="auth-submit" onclick="submitAuth()">登录</button>
+    </div>
+    <p class="hint" style="margin-top:12px">
+      演示账号：demo / demo123　<button class="link-btn" onclick="fillDemo()">一键填入</button>
+    </p>
+    <p class="hint" style="margin-top:6px">演示账号直接使用部署方配置的 DeepSeek Key；注册账号使用你自己的 Key（BYOK）。</p>
+    <p class="hint" id="auth-error" style="color:var(--danger)"></p>
+  </div>
+</div>
+
+<div class="modal-mask" id="key-modal">
+  <div class="modal">
+    <h3>填写你的 API Key（BYOK）</h3>
+    <p class="hint">注册账号需要使用自己的 DeepSeek API Key。Key 只保存在你的浏览器，生成时仅用于本次调用，不会存到服务器。</p>
+    <label for="key-input">DeepSeek API Key</label>
+    <input id="key-input" type="password" placeholder="sk-..." autocomplete="off">
+    <div class="actions">
+      <button class="btn primary" onclick="saveUserKey()">保存并继续</button>
+      <button class="btn" onclick="skipKey()">稍后再说</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -402,6 +451,9 @@
   let draft = null;
   let editingTopicId = null;
   let selectedFile = null;
+  let authToken = localStorage.getItem("auth_token") || "";
+  let currentUser = null;
+  let authMode = "login";
   let API_ROOT = ""; // 同源页面为空；部署在 GitHub Pages 时自动回退到本地后端
 
   function apiUrl(path) {
@@ -472,11 +524,125 @@
     const apiKey = $("llm-api-key").value.trim();
     const baseUrl = $("llm-base-url").value.trim();
     const model = $("llm-model").value.trim();
-    if (provider) headers["X-LLM-Provider"] = provider;
+    const useSaved = localStorage.getItem("llm_settings") !== null;
+    if (provider && (useSaved || provider !== "ollama")) headers["X-LLM-Provider"] = provider;
     if (apiKey) headers["X-API-Key"] = apiKey;
     if (baseUrl) headers["X-LLM-Base-URL"] = baseUrl;
     if (model) headers["X-LLM-Model"] = model;
     return headers;
+  }
+
+  function authHeaders() {
+    return authToken ? { "Authorization": "Bearer " + authToken } : {};
+  }
+
+  function showAuth() {
+    $("auth-modal").classList.add("show");
+    $("auth-error").textContent = "";
+  }
+  function hideAuth() { $("auth-modal").classList.remove("show"); }
+  function showKeyModal() { $("key-modal").classList.add("show"); }
+  function hideKeyModal() { $("key-modal").classList.remove("show"); }
+
+  function switchAuth(mode) {
+    authMode = mode;
+    const isLogin = mode === "login";
+    $("auth-title").textContent = isLogin ? "登录" : "注册新账号";
+    $("auth-submit").textContent = isLogin ? "登录" : "注册并登录";
+    $("tab-login").classList.toggle("active", isLogin);
+    $("tab-register").classList.toggle("active", !isLogin);
+    $("auth-error").textContent = "";
+  }
+
+  function fillDemo() {
+    $("auth-username").value = "demo";
+    $("auth-password").value = "demo123";
+    $("auth-error").textContent = "";
+  }
+
+  async function submitAuth() {
+    const username = $("auth-username").value.trim();
+    const password = $("auth-password").value;
+    if (!username || !password) { $("auth-error").textContent = "请填写用户名和密码"; return; }
+    const url = authMode === "login" ? apiUrl("/auth/login") : apiUrl("/auth/register");
+    try {
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: Object.assign({ "Content-Type": "application/json" }, authHeaders()),
+        body: JSON.stringify({ username, password })
+      });
+      const data = await handleResponse(resp);
+      authToken = data.token;
+      localStorage.setItem("auth_token", authToken);
+      currentUser = { username: data.username, is_demo: data.is_demo };
+      hideAuth();
+      renderUser();
+      toast("欢迎，" + data.username + (data.is_demo ? "（演示账号）" : ""));
+      if (!data.is_demo && !hasSavedKey()) showKeyModal();
+    } catch (err) {
+      $("auth-error").textContent = err.message;
+    }
+  }
+
+  function hasSavedKey() {
+    try {
+      const settings = JSON.parse(localStorage.getItem("llm_settings") || "{}");
+      return Boolean(settings.apiKey);
+    } catch (e) { return false; }
+  }
+
+  function saveUserKey() {
+    const key = $("key-input").value.trim();
+    if (!key) { toast("请填写 API Key"); return; }
+    const settings = {
+      provider: "deepseek",
+      apiKey: key,
+      baseUrl: PROVIDER_PRESETS.deepseek.base,
+      model: PROVIDER_PRESETS.deepseek.model
+    };
+    localStorage.setItem("llm_settings", JSON.stringify(settings));
+    $("key-input").value = "";
+    hideKeyModal();
+    loadLlmSettings();
+    checkHealth();
+    toast("API Key 已保存到本机（仅你的浏览器可见）");
+  }
+
+  function skipKey() {
+    hideKeyModal();
+    toast("未填 Key 时将使用服务端配置的 Key（建议填写自己的）");
+  }
+
+  function renderUser() {
+    $("user-info").textContent = currentUser ? "👤 " + currentUser.username + (currentUser.is_demo ? "（演示）" : "") : "";
+    $("login-btn").style.display = currentUser ? "none" : "inline-flex";
+    $("logout-btn").style.display = currentUser ? "inline-flex" : "none";
+  }
+
+  function logout() {
+    authToken = "";
+    currentUser = null;
+    localStorage.removeItem("auth_token");
+    renderUser();
+    hideKeyModal();
+    showAuth();
+    toast("已退出登录");
+  }
+
+  async function checkAuth() {
+    if (!authToken) { renderUser(); showAuth(); return; }
+    try {
+      const resp = await fetch(apiUrl("/auth/me"), { headers: Object.assign(authHeaders(), llmHeaders()) });
+      const data = await handleResponse(resp);
+      currentUser = { username: data.username, is_demo: data.is_demo };
+      renderUser();
+    } catch (err) {
+      authToken = "";
+      localStorage.removeItem("auth_token");
+      currentUser = null;
+      renderUser();
+      showAuth();
+    }
   }
 
   const $ = id => document.getElementById(id);
@@ -554,6 +720,11 @@
 
   /* ---------- 生成 ---------- */
   async function startGenerate() {
+    if (!authToken || !currentUser) {
+      showAuth();
+      toast("请先登录：演示账号 demo / demo123");
+      return;
+    }
     const courseName = $("course-name").value.trim();
     const courseId = $("course-code").value.trim();
     if (!courseName) { toast("请填写课程名称"); return; }
@@ -616,7 +787,7 @@
     };
     const resp = await fetch(apiUrl("/generate-advance"), {
       method: "POST",
-      headers: Object.assign({ "Content-Type": "application/json" }, llmHeaders()),
+      headers: Object.assign({ "Content-Type": "application/json" }, authHeaders(), llmHeaders()),
       body: JSON.stringify(payload)
     });
     return handleResponse(resp);
@@ -633,13 +804,25 @@
     form.append("duration_minutes", String(Number($("duration").value) || 120));
     form.append("coverage_priority", $("coverage-priority").value);
     form.append("preferred_question_types", selectedTypes().join(","));
-    const resp = await fetch(apiUrl("/generate-advance/upload"), { method: "POST", headers: llmHeaders(), body: form });
+    const resp = await fetch(apiUrl("/generate-advance/upload"), {
+      method: "POST",
+      headers: Object.assign(authHeaders(), llmHeaders()),
+      body: form
+    });
     return handleResponse(resp);
   }
 
   async function handleResponse(resp) {
     let data = null;
     try { data = await resp.json(); } catch (e) { /* ignore */ }
+    if (resp.status === 401) {
+      authToken = "";
+      localStorage.removeItem("auth_token");
+      currentUser = null;
+      renderUser();
+      showAuth();
+      throw new Error(data && data.detail ? data.detail : "请先登录（演示账号：demo / demo123）");
+    }
     if (!resp.ok) {
       let msg = "请求失败（HTTP " + resp.status + "）";
       if (data && data.detail) msg = typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail);
@@ -735,7 +918,7 @@
     try {
       const resp = await fetch(apiUrl("/edit-feedback"), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: Object.assign({ "Content-Type": "application/json" }, authHeaders()),
         body: JSON.stringify({ outline_version: draft.outline_version, edits })
       });
       const data = await handleResponse(resp);
@@ -835,7 +1018,7 @@
     try {
       const resp = await fetch(apiUrl("/export"), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: Object.assign({ "Content-Type": "application/json" }, authHeaders()),
         body: JSON.stringify({
           outline_version: draft.outline_version,
           format: $("export-format").value,
@@ -894,6 +1077,7 @@
 
   checkHealth();
   loadLlmSettings();
+  checkAuth();
 </script>
 </body>
 </html>

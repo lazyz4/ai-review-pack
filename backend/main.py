@@ -21,7 +21,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from backend.api import edit_feedback, export, generate
+from backend.api import auth
 from backend.services.llm_client import LLMClient, overrides_from_headers
+from backend.services.auth_service import init_db
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 logger = logging.getLogger("review-pack.main")
@@ -55,9 +57,13 @@ def create_app() -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         """启动时创建共享 LLM 客户端，关闭时释放资源。"""
+        init_db()
+        api_key = os.getenv("MY_DEEPSEEK_KEY", "") or os.getenv("LLM_API_KEY", "")
+        provider_env = os.getenv("LLM_PROVIDER", "").strip().lower()
+        provider = provider_env or ("deepseek" if api_key else "ollama")
         llm = LLMClient(
-            provider=os.getenv("LLM_PROVIDER", "ollama"),
-            api_key=os.getenv("LLM_API_KEY", ""),
+            provider=provider,
+            api_key=api_key,
             base_url=os.getenv("LLM_API_BASE", ""),
             model=os.getenv("LLM_MODEL", ""),
             timeout=float(os.getenv("LLM_TIMEOUT", "600")),
@@ -93,6 +99,7 @@ def create_app() -> FastAPI:
     app.include_router(generate.router, prefix=f"/api/{API_VERSION}")
     app.include_router(edit_feedback.router, prefix=f"/api/{API_VERSION}")
     app.include_router(export.router, prefix=f"/api/{API_VERSION}")
+    app.include_router(auth.router, prefix=f"/api/{API_VERSION}")
 
     @app.get(f"/api/{API_VERSION}/health", tags=["system"])
     async def health(request: Request) -> dict[str, Any]:

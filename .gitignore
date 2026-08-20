@@ -3,5 +3,7 @@ __pycache__/
 *.pyc
 work/
 outputs/exports/
+backend/data/
+*.db
 .idea/
 .vscode/

@@ -10,10 +10,11 @@ import json
 import os
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 
 from backend.schemas.course import ExportRequest, ExportResponse, GenerateAdvanceResponse
+from backend.api.auth import require_user
 from backend.store import get_draft, get_request
 
 router = APIRouter(prefix="/export", tags=["export"])
@@ -22,7 +23,7 @@ EXPORT_DIR = Path(os.getenv("EXPORT_DIR", "outputs/exports")).resolve()
 
 
 @router.post("", response_model=ExportResponse, status_code=200, summary="导出最终复习包文件")
-async def export_document(payload: ExportRequest) -> ExportResponse:
+async def export_document(payload: ExportRequest, user: dict = Depends(require_user)) -> ExportResponse:
     """按指定格式生成复习包文件并返回下载信息。"""
     draft = get_draft(payload.outline_version)
     if draft is None:

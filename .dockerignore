@@ -1,0 +1,7 @@
+.git
+.venv
+work
+__pycache__
+*.pyc
+backend/data
+outputs/exports

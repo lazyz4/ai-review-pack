@@ -12,8 +12,9 @@ from __future__ import annotations
 
 from datetime import date
 
-from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 
+from backend.api.auth import require_user
 from backend.schemas.course import GenerateAdvanceRequest, GenerateAdvanceResponse, TopicPreferences
 from backend.services.file_parser import extract_text
 from backend.services.llm_client import LLMError, overrides_from_headers
@@ -26,7 +27,11 @@ MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 
 
 @router.post("", response_model=GenerateAdvanceResponse, status_code=200, summary="生成整合复习包草案")
-async def generate_advance(payload: GenerateAdvanceRequest, request: Request) -> GenerateAdvanceResponse:
+async def generate_advance(
+    payload: GenerateAdvanceRequest,
+    request: Request,
+    user: dict = Depends(require_user),
+) -> GenerateAdvanceResponse:
     """提交大纲文本，解析并生成复习包草案（知识点、模板、示例题、覆盖率、学习计划）。"""
     llm = request.app.state.llm
     overrides = overrides_from_headers(request.headers)
@@ -53,6 +58,7 @@ async def generate_advance_upload(
         description="逗号分隔的偏好题型",
     ),
     request: Request = ...,
+    user: dict = Depends(require_user),
 ) -> GenerateAdvanceResponse:
     """上传 PPT/PDF/DOCX/TXT 文件，提取文本后调用 Ollama 生成复习包。"""
     content = await file.read()
