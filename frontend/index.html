@@ -719,6 +719,11 @@
       toast("请先登录（演示账号：demo）");
       return;
     }
+    if (!currentUser.is_demo && !hasSavedKey()) {
+      showKeyModal();
+      toast("注册账号请先填写你自己的 API Key");
+      return;
+    }
     const courseName = $("course-name").value.trim();
     const courseId = $("course-code").value.trim();
     if (!courseName) { toast("请填写课程名称"); return; }
@@ -750,6 +755,7 @@
       clearInterval(timer);
       $("gen-status").className = "status error";
       $("gen-status").textContent = "生成失败：" + err.message;
+      if (err.message && err.message.indexOf("API Key") !== -1) showKeyModal();
     } finally {
       setGenerating(false);
     }

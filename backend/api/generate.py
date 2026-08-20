@@ -36,7 +36,7 @@ async def generate_advance(
     llm = request.app.state.llm
     overrides = overrides_from_headers(request.headers)
     try:
-        response = await generate_review_pack(payload, llm, overrides)
+        response = await generate_review_pack(payload, llm, overrides, is_demo=user["is_demo"])
     except LLMError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
     save_draft(response.outline_version, payload, response)
@@ -97,7 +97,7 @@ async def generate_advance_upload(
     )
     overrides = overrides_from_headers(request.headers)
     try:
-        response = await generate_review_pack(payload, request.app.state.llm, overrides)
+        response = await generate_review_pack(payload, request.app.state.llm, overrides, is_demo=user["is_demo"])
     except LLMError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
     save_draft(response.outline_version, payload, response)

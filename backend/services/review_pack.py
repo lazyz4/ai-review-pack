@@ -140,6 +140,7 @@ async def generate_review_pack(
     request: GenerateAdvanceRequest,
     llm: LLMClient,
     overrides: dict[str, str] | None = None,
+    is_demo: bool = False,
 ) -> GenerateAdvanceResponse:
     """生成整合复习包草案。
 
@@ -156,9 +157,11 @@ async def generate_review_pack(
         raise LLMError(f"未知服务商：{provider}")
     if provider != "ollama" and provider != "custom" and not api_key:
         label = PROVIDERS.get(provider, {}).get("label", provider)
+        if is_demo:
+            raise LLMError(f"部署方未配置 {label} API Key：请在服务端环境变量 MY_DEEPSEEK_KEY 中配置")
         raise LLMError(
-            f"未配置 {label} API Key：请在页面“模型设置”中填写你自己的 Key"
-            "（BYOK 模式：每个用户用自己的 Key，互不扣费），或服务端设置 LLM_API_KEY 环境变量"
+            f"注册账号请先填写你自己的 {label} API Key（BYOK：每个用户用自己的 Key，互不扣费）"
+            "——在页面“模型设置”中填写，或按注册后的提示输入"
         )
 
     if provider == "ollama":

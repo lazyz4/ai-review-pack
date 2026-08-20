@@ -61,12 +61,19 @@ def init_db() -> None:
         )
         demo_username = os.getenv("DEMO_USERNAME", "demo")
         demo_password = os.getenv("DEMO_PASSWORD", "demo123")
+        salt, password_hash = _hash_password(demo_password)
         existing = conn.execute("SELECT username FROM users WHERE username = ?", (demo_username,)).fetchone()
         if existing is None:
-            salt, password_hash = _hash_password(demo_password)
             conn.execute(
                 "INSERT INTO users (username, password_hash, salt, is_demo, created_at) VALUES (?, ?, ?, 1, ?)",
                 (demo_username, password_hash, salt, _now_iso()),
+            )
+        else:
+            # 环境变量是演示账号密码的唯一事实来源：每次启动都同步，
+            # 保证云端改密并重新部署后，旧密码立即失效（即使数据库文件被保留）。
+            conn.execute(
+                "UPDATE users SET password_hash = ?, salt = ? WHERE username = ?",
+                (password_hash, salt, demo_username),
             )
         conn.commit()
         conn.close()
