@@ -53,7 +53,7 @@ py -m venv .venv
 浏览器打开 <http://127.0.0.1:8000>，使用演示账号登录：
 
 - 用户名：`demo`
-- 密码：部署时在环境变量 `DEMO_PASSWORD` 中设置（本地开发默认 `demo123`）
+- 密码：环境变量 `DEMO_PASSWORD` 中设置的值（**未设置时不创建演示账号**，请改用注册）
 
 本地没有配置 DeepSeek Key 时，程序自动使用本地 Ollama（需先 `ollama pull qwen2.5:3b`）。
 
@@ -86,7 +86,7 @@ py -m venv .venv
 | `LLM_PROVIDER` | 自动 | 显式指定服务商：deepseek / openai / moonshot / siliconflow / zhipu / ollama / custom |
 | `LLM_API_BASE` / `LLM_MODEL` | 按服务商预设 | 自定义服务商地址与模型 |
 | `LLM_TIMEOUT` | `600` | 单次生成超时（秒） |
-| `DEMO_USERNAME` / `DEMO_PASSWORD` | demo / 由你设置 | 演示账号（写入数据库前生效；部署时必须自定义密码） |
+| `DEMO_USERNAME` / `DEMO_PASSWORD` | demo / 由你设置 | 演示账号；**未设置 DEMO_PASSWORD 时不创建演示账号**（代码中无默认密码） |
 | `DATABASE_PATH` | `backend/data/users.db` | SQLite 数据库路径 |
 | `CORS_ORIGINS` | 本地开发来源 | 逗号分隔的 CORS 白名单 |
 | `EXPORT_DIR` | `outputs/exports` | 导出文件目录 |

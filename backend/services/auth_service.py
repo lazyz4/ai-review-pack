@@ -1,7 +1,8 @@
 """账号与会话服务（SQLite，标准库实现）。
 
-支持注册、登录与 Token 会话。内置演示账号（用户名 demo，密码由环境变量
-DEMO_PASSWORD 设置；未设置时默认 demo123，仅用于本地开发）。密码使用 PBKDF2 加盐哈希存储，
+支持注册、登录与 Token 会话。演示账号（用户名 demo）**只有在环境变量
+DEMO_PASSWORD 设置时才会存在**；未设置时演示账号会被删除，代码中不存在任何默认密码。
+密码使用 PBKDF2 加盐哈希存储，
 演示账号直接使用服务端环境变量中的 API Key；注册账号在前端填写自己的
 API Key（BYOK），后端不存储任何用户的 Key。
 """
@@ -59,8 +60,23 @@ def init_db() -> None:
             )
             """
         )
-        demo_username = os.getenv("DEMO_USERNAME", "demo")
-        demo_password = os.getenv("DEMO_PASSWORD", "demo123")
+        demo_username = (os.getenv("DEMO_USERNAME", "demo") or "demo").strip()
+        demo_password = (os.getenv("DEMO_PASSWORD", "") or "").strip()
+        if not demo_password:
+            # 未配置 DEMO_PASSWORD：删除所有演示账号及其会话，杜绝任何默认密码
+            conn.execute(
+                "DELETE FROM sessions WHERE username IN (SELECT username FROM users WHERE is_demo = 1)"
+            )
+            conn.execute("DELETE FROM users WHERE is_demo = 1")
+            conn.commit()
+            conn.close()
+            return
+        # 清理旧演示账号（用户名变更或历史残留）
+        conn.execute(
+            "DELETE FROM sessions WHERE username IN (SELECT username FROM users WHERE is_demo = 1 AND username != ?)",
+            (demo_username,),
+        )
+        conn.execute("DELETE FROM users WHERE is_demo = 1 AND username != ?", (demo_username,))
         salt, password_hash = _hash_password(demo_password)
         existing = conn.execute("SELECT username FROM users WHERE username = ?", (demo_username,)).fetchone()
         if existing is None:
@@ -77,6 +93,11 @@ def init_db() -> None:
             )
         conn.commit()
         conn.close()
+
+
+def demo_password_configured() -> bool:
+    """是否配置了演示账号密码（未配置时演示账号不存在）。"""
+    return bool((os.getenv("DEMO_PASSWORD", "") or "").strip())
 
 
 def register(username: str, password: str) -> dict:
