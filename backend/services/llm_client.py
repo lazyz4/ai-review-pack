@@ -62,6 +62,18 @@ class LLMClient:
             headers["Authorization"] = f"Bearer {api_key}"
         return headers
 
+    def effective_api_key(self, provider: str = "", api_key: str = "") -> str:
+        """BYOK：请求级 Key 优先；未提供时仅当所选服务商与服务端一致才回退到服务端 Key。
+
+        避免把服务端 DeepSeek Key 误发给 OpenAI / Kimi 等其他服务商。
+        """
+        key = (api_key or "").strip()
+        if key:
+            return key
+        if (provider or self.provider or "").lower() == (self.provider or "").lower():
+            return self.api_key or ""
+        return ""
+
     async def list_models(self, api_key: str = "", base_url: str = "") -> list[str]:
         """列出服务商可用模型。"""
         import httpx
@@ -114,7 +126,7 @@ class LLMClient:
 
         provider = (provider or self.provider or DEFAULT_PROVIDER).lower()
         preset = PROVIDERS.get(provider)
-        key = api_key or self.api_key
+        key = self.effective_api_key(provider, api_key)
         base = (base_url or (preset["base_url"] if preset else "") or self.base_url).rstrip("/")
         mdl = model or (preset["model"] if preset else "") or self.model
         if provider not in PROVIDERS and provider != "custom":
@@ -148,7 +160,7 @@ class LLMClient:
 
         provider = (provider or self.provider or DEFAULT_PROVIDER).lower()
         preset = PROVIDERS.get(provider)
-        key = api_key or self.api_key
+        key = self.effective_api_key(provider, api_key)
         base = (base_url or (preset["base_url"] if preset else "") or self.base_url).rstrip("/")
         mdl = model or (preset["model"] if preset else "") or self.model
         if provider != "ollama" and provider != "custom" and not key:

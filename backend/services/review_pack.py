@@ -145,11 +145,12 @@ async def generate_review_pack(
     """生成整合复习包草案。
 
     优先使用请求级 BYOK 配置（用户自己的 API Key / 服务商 / 模型）；
-    云端服务商缺 Key 或调用失败时直接报错；本地 Ollama 不可用时自动降级为启发式生成。
+    云端服务商缺 Key 或 Key 无效时返回明确报错；
+    模型输出无法解析或 Ollama 不可用时自动降级为启发式生成，保证页面始终可用。
     """
     overrides = overrides or {}
     provider = (overrides.get("provider") or llm.provider or "ollama").lower()
-    api_key = overrides.get("api_key") or llm.api_key or ""
+    api_key = llm.effective_api_key(provider, overrides.get("api_key") or "")
 
     if provider == "custom" and not overrides.get("base_url"):
         raise LLMError("自定义服务商需要填写 Base URL（例如 https://api.example.com/v1）")
@@ -157,11 +158,9 @@ async def generate_review_pack(
         raise LLMError(f"未知服务商：{provider}")
     if provider != "ollama" and provider != "custom" and not api_key:
         label = PROVIDERS.get(provider, {}).get("label", provider)
-        if is_demo:
-            raise LLMError(f"部署方未配置 {label} API Key：请在服务端环境变量 MY_DEEPSEEK_KEY 中配置")
         raise LLMError(
-            f"注册账号请先填写你自己的 {label} API Key（BYOK：每个用户用自己的 Key，互不扣费）"
-            "——在页面“模型设置”中填写，或按注册后的提示输入"
+            f"没有可用的 {label} API Key：请在页面“模型设置”中填写你自己的 Key"
+            "（选择 DeepSeek 且不填 Key 时，演示账号默认使用部署方配置的服务端 Key）"
         )
 
     if provider == "ollama":
@@ -178,6 +177,7 @@ async def generate_review_pack(
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": _build_user_prompt(request)},
     ]
+    last_parse_error = ""
     for attempt in range(2):
         raw_text = ""
         try:
@@ -197,6 +197,7 @@ async def generate_review_pack(
                 raise
             logger.warning("Ollama 第 %d 次生成失败：%s", attempt + 1, exc)
         except Exception as exc:  # noqa: BLE001 - 降级路径需要捕获一切解析异常
+            last_parse_error = str(exc)
             logger.warning("第 %d 次生成解析失败：%s", attempt + 1, exc)
             if attempt == 0 and raw_text:
                 messages.append({"role": "assistant", "content": raw_text[:3000]})
@@ -206,7 +207,15 @@ async def generate_review_pack(
     if provider == "ollama":
         logger.warning("Ollama 两次生成失败，切换到启发式生成")
         return _fallback_response(request)
-    raise LLMError("模型生成失败，请稍后重试或更换模型/服务商", status_code=502)
+    # 云端模型输出无法解析：不直接报 502，降级为启发式生成并说明原因，保证页面可用
+    logger.warning("%s 两次生成结果无法解析，切换到启发式生成：%s", provider, last_parse_error)
+    fallback = _fallback_response(request)
+    label = PROVIDERS.get(provider, {}).get("label", provider)
+    fallback.summary += (
+        f"（{label} 返回内容无法解析为复习包 JSON，已自动降级为本地启发式生成："
+        f"{last_parse_error or '未知原因'}。可检查 Key/模型设置后重试）"
+    )
+    return fallback
 
 
 def apply_topic_edits(draft: GenerateAdvanceResponse, edits: list[TopicEdit]) -> GenerateAdvanceResponse:
@@ -273,6 +282,10 @@ def _build_user_prompt(request: GenerateAdvanceRequest) -> str:
 
 def _extract_json(text: str) -> dict[str, Any]:
     """从模型输出中提取第一个完整 JSON 对象。"""
+    text = text.strip()
+    if text.startswith("```"):
+        text = re.sub(r"^```(?:json)?\s*", "", text)
+        text = re.sub(r"\s*```$", "", text)
     start = text.find("{")
     end = text.rfind("}")
     if start == -1 or end == -1 or end <= start:

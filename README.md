@@ -11,11 +11,11 @@ AI 分析后生成知识点清单、题型模板、示例题、覆盖率统计�
 
 - 多科目自选：软件测试、数据结构、操作系统、计算机网络、高等数学、大学英语等 + 自定义科目
 - 文件上传：`.pptx` / `.pdf` / `.docx` / `.txt` / `.md`（20MB 以内），自动提取文本
-- 账号体系：演示账号（demo，密码由部署方在环境变量 `DEMO_PASSWORD` 中设置）直接使用部署方的 DeepSeek Key；注册账号填写自己的 Key（BYOK）
-- BYOK 自由选择：DeepSeek / OpenAI / Kimi / 硅基流动 / 智谱 / 本地 Ollama / 自定义
+- 账号体系：演示账号（demo，密码由部署方在环境变量 `DEMO_PASSWORD` 中设置）；演示/注册账号都可在页面“模型设置”自由选择服务商
+- BYOK 自由选择：DeepSeek / OpenAI / Kimi / 硅基流动 / 智谱 / 本地 Ollama / 自定义（DeepSeek 不填 Key 时演示账号默认使用服务端 Key）
 - 结果可微调：修改知识点难度/题型/高频标记后重新评估覆盖率
 - 多格式导出：Word / PDF / Markdown / JSON
-- 无 Key 且无本地 Ollama 时自动降级为启发式生成，服务不中断
+- 无 Key、无本地 Ollama 或模型输出异常时自动降级为启发式生成，服务不中断
 
 ## 目录结构
 
@@ -134,10 +134,11 @@ docker compose up -d --build
 
 ## BYOK 与账号说明
 
-- **演示账号（demo）**：直接使用部署方在环境变量里配置的 DeepSeek Key，方便体验；密码由部署方在 `DEMO_PASSWORD` 中设置，不在前端/仓库中公开；
+- **演示账号（demo）**：默认使用部署方在环境变量里配置的 DeepSeek Key，方便体验；也可在“模型设置”里换成 Ollama / OpenAI 等，或填写自己的 Key；密码由部署方在 `DEMO_PASSWORD` 中设置，不在前端/仓库中公开；
 - **注册账号**：登录后页面弹出 API Key 输入框，Key 保存在该用户自己的浏览器（localStorage），
-  生成请求通过 `X-API-Key` 等请求头转发，后端只转发、不存储；
+  生成请求通过 `X-API-Key` 等请求头转发，后端只转发、不存储；未填 Key 时 DeepSeek 会回退到服务端 Key；
 - 云端服务商缺 Key 时明确提示填 Key；Key 无效时返回服务商的具体报错。
+- 云端模型返回内容无法解析（或 Ollama 不可用）时自动降级为启发式生成，并在摘要中说明原因，页面不会卡在加载。
 
 ## 在线演示（GitHub Pages，仅界面）
 
