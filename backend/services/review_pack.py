@@ -201,9 +201,21 @@ async def generate_review_pack(
             logger.warning("第 %d 次生成解析失败：%s", attempt + 1, exc)
             if attempt == 0 and raw_text:
                 messages.append({"role": "assistant", "content": raw_text[:3000]})
-                messages.append(
-                    {"role": "user", "content": "上次输出不是合法 JSON。请只输出一个合法 JSON 对象，不要 Markdown 代码块。"}
-                )
+                if "未返回有效知识点" in str(exc):
+                    messages.append(
+                        {
+                            "role": "user",
+                            "content": (
+                                "上次输出虽然包含 JSON，但缺少有效的 topics 数组。"
+                                "请严格按要求的 JSON 结构输出：topics 必须是非空数组，"
+                                "每个元素至少包含 topic_id / name / summary / difficulty / question_types。"
+                            ),
+                        }
+                    )
+                else:
+                    messages.append(
+                        {"role": "user", "content": "上次输出不是合法 JSON。请只输出一个合法 JSON 对象，不要 Markdown 代码块。"}
+                    )
     if provider == "ollama":
         logger.warning("Ollama 两次生成失败，切换到启发式生成")
         return _fallback_response(request)
@@ -213,7 +225,8 @@ async def generate_review_pack(
     label = PROVIDERS.get(provider, {}).get("label", provider)
     fallback.summary += (
         f"（{label} 返回内容无法解析为复习包 JSON，已自动降级为本地启发式生成："
-        f"{last_parse_error or '未知原因'}。可检查 Key/模型设置后重试）"
+        f"{last_parse_error or '未知原因'}。{_output_diagnostic(raw_text)}"
+        "可检查 Key/模型设置后重试）"
     )
     return fallback
 
@@ -300,6 +313,14 @@ def _extract_json(text: str) -> dict[str, Any]:
             # 该段不是合法 JSON，继续找下一个 “{”
             start = text.find("{", end + 1 if end is not None else start + 1)
     raise ValueError("模型响应中未找到合法 JSON 对象")
+
+
+def _output_diagnostic(text: str) -> str:
+    """给降级摘要附加一段简短诊断（只取开头，不泄露完整内容）。"""
+    text = (text or "").strip()
+    if not text:
+        return "模型返回内容为空。"
+    return f"返回内容开头：{text[:60].replace(chr(10), ' ')}……"
 
 
 def _balanced_json_object(text: str, start: int) -> tuple[str, int]:
