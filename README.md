@@ -57,7 +57,31 @@ py -m venv .venv
 
 本地没有配置 DeepSeek Key 时，程序自动使用本地 Ollama（需先 `ollama pull qwen2.5:3b`）。
 
-## 云部署（Railway，提供公开网址）
+## 云部署（腾讯云 · 轻量应用服务器，推荐）
+
+准备一台腾讯云轻量应用服务器（系统选 Ubuntu/Debian，控制台防火墙放行 TCP 80）。
+代码已包含 [Dockerfile](Dockerfile) 与 [docker-compose.yml](docker-compose.yml)，服务器上三步启动：
+
+```bash
+# 1. SSH 登录服务器后安装 Docker
+curl -fsSL https://get.docker.com | sh
+
+# 2. 拉代码并配置环境变量（Key 只填在服务器的 .env 里）
+git clone https://github.com/lazyz4/ai-review-pack.git && cd ai-review-pack
+cp .env.example .env
+nano .env        # 填入 MY_DEEPSEEK_KEY 和 DEMO_PASSWORD，保存退出
+
+# 3. 启动
+docker compose up -d --build
+```
+
+然后在腾讯云控制台 → 轻量服务器 → 防火墙 → 添加规则 **TCP 80**，
+浏览器打开 `http://服务器公网IP` 即可使用。
+
+> `.env` 在服务器上配置，不会进 GitHub；数据库持久化在服务器的 `./data` 目录，
+> 注册用户和会话不会因重启丢失。
+
+## 备选一：Railway（免费额度，提供公开网址）
 
 代码已包含 [Dockerfile](Dockerfile) 与 [railway.json](railway.json)，Railway 会自动识别。
 

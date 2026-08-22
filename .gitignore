@@ -5,5 +5,7 @@ work/
 outputs/exports/
 backend/data/
 *.db
+.env
+data/
 .idea/
 .vscode/
