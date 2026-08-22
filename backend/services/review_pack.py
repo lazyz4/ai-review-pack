@@ -229,10 +229,18 @@ def apply_topic_edits(draft: GenerateAdvanceResponse, edits: list[TopicEdit]) ->
             topic.is_high_frequency = edit.mark_high_frequency
             changed = True
     if changed:
-        for template in draft.templates:
-            topic = topics_by_id.get(template.topic_id)
-            if topic is not None:
-                template.difficulty = topic.difficulty
+        # 同步重建每个知识点的题型模板：保留仍选中的题型，补齐新选的题型
+        rebuilt: list[QuestionTemplateOut] = []
+        for topic in draft.topics:
+            topic_templates = [tpl for tpl in draft.templates if tpl.topic_id == topic.topic_id]
+            keep = [tpl for tpl in topic_templates if tpl.question_type in topic.question_types]
+            for tpl in keep:
+                tpl.difficulty = topic.difficulty
+            covered = {tpl.question_type for tpl in keep}
+            missing = [qtype for qtype in topic.question_types if qtype not in covered]
+            rebuilt.extend(keep)
+            rebuilt.extend(tpl for tpl in _fallback_templates(topic) if tpl.question_type in missing)
+        draft.templates = rebuilt
         draft.coverage_metrics = _coverage(draft.topics)
         draft.outline_version = _bump_version(draft.outline_version)
     draft.created_at = datetime.now(timezone.utc)
