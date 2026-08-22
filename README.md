@@ -57,7 +57,28 @@ py -m venv .venv
 
 本地没有配置 DeepSeek Key 时，程序自动使用本地 Ollama（需先 `ollama pull qwen2.5:3b`）。
 
-## 云部署（腾讯云 · 轻量应用服务器，推荐）
+## 云部署（Railway，推荐，提供公开网址）
+
+代码已包含 [Dockerfile](Dockerfile) 与 [railway.json](railway.json)，Railway 会自动识别。
+
+方式一（免绑卡）：打开模板部署入口
+**<https://railway.app/new/template?template=https://github.com/lazyz4/ai-review-pack>**
+
+方式二：打开 <https://railway.app/new> → Deploy from GitHub repo → 选择 `lazyz4/ai-review-pack`。
+
+部署步骤：
+1. 用 GitHub 账号登录 Railway，点击 Deploy；
+2. 构建完成后进入项目 → **Variables**，添加：
+   - `MY_DEEPSEEK_KEY` = 你的 `sk-...`（注意：不要在代码/仓库中出现这个 Key）
+   - `DEMO_USERNAME` = `demo`（可改）
+   - `DEMO_PASSWORD` = 你自己设的密码（不设置则没有演示账号）
+3. 部署成功后，在 **Settings → Networking** 里生成公网域名（`*.up.railway.app`）；
+4. 打开该网址即可使用，用演示账号或注册账号登录。
+
+> Railway 免费额度（约 $5/月）一般无需绑卡；若平台要求绑卡，备选方案是
+> 腾讯云轻量服务器或 Hugging Face Spaces。
+
+## 备选：腾讯云轻量应用服务器（自备服务器）
 
 准备一台腾讯云轻量应用服务器（系统选 Ubuntu/Debian，控制台防火墙放行 TCP 80）。
 代码已包含 [Dockerfile](Dockerfile) 与 [docker-compose.yml](docker-compose.yml)，服务器上三步启动：
@@ -80,27 +101,6 @@ docker compose up -d --build
 
 > `.env` 在服务器上配置，不会进 GitHub；数据库持久化在服务器的 `./data` 目录，
 > 注册用户和会话不会因重启丢失。
-
-## 备选一：Railway（免费额度，提供公开网址）
-
-代码已包含 [Dockerfile](Dockerfile) 与 [railway.json](railway.json)，Railway 会自动识别。
-
-方式一（推荐，免绑卡）：打开模板部署入口
-**<https://railway.app/new/template?template=https://github.com/lazyz4/ai-review-pack>**
-
-方式二：打开 <https://railway.app/new> → Deploy from GitHub repo → 选择 `lazyz4/ai-review-pack`。
-
-部署步骤：
-1. 用 GitHub 账号登录 Railway，点击 Deploy；
-2. 构建完成后进入项目 → **Variables**，添加：
-   - `MY_DEEPSEEK_KEY` = 你的 `sk-...`（注意：不要在代码/仓库中出现这个 Key）
-   - `DEMO_USERNAME` = `demo`（可改）
-   - `DEMO_PASSWORD` = 你自己设的密码（可改）
-3. 部署成功后，在 **Settings → Networking** 里把公网域名（`*.up.railway.app`）生成出来；
-4. 打开该网址即可使用，用演示账号或注册账号登录。
-
-> Railway 免费额度（约 $5/月）一般无需绑卡；若平台要求绑卡，备选方案是
-> Hugging Face Spaces（同样免绑卡）或本地部署。
 
 ## 环境变量
 
