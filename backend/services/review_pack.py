@@ -181,7 +181,8 @@ async def generate_review_pack(
     for attempt in range(2):
         raw_text = ""
         try:
-            raw_text = await llm.chat(messages, temperature=0.3, max_tokens=2048, **overrides)
+            # 复习包 JSON 输出较长，2048 tokens 容易被截断导致解析失败
+            raw_text = await llm.chat(messages, temperature=0.3, max_tokens=4096, **overrides)
             data = _extract_json(raw_text)
             result = _response_from_data(request, data)
             logger.info(
@@ -304,14 +305,22 @@ def _extract_json(text: str) -> dict[str, Any]:
         text = re.sub(r"^```(?:json)?\s*", "", text)
         text = re.sub(r"\s*```$", "", text)
     start = text.find("{")
+    if start == -1:
+        raise ValueError("模型响应中未找到 JSON 对象")
     end = None
     while start != -1:
         try:
             candidate, end = _balanced_json_object(text, start)
+        except ValueError:
+            if end is None:
+                raise ValueError("模型响应中的 JSON 不完整（可能被输出长度上限截断），请增大 max_tokens")
+            raise
+        try:
             return json.loads(candidate)
         except ValueError:
-            # 该段不是合法 JSON，继续找下一个 “{”
-            start = text.find("{", end + 1 if end is not None else start + 1)
+            pass
+        # 该段不是合法 JSON，继续找下一个 “{”
+        start = text.find("{", end + 1)
     raise ValueError("模型响应中未找到合法 JSON 对象")
 
 
