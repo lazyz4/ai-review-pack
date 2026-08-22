@@ -281,16 +281,55 @@ def _build_user_prompt(request: GenerateAdvanceRequest) -> str:
 
 
 def _extract_json(text: str) -> dict[str, Any]:
-    """从模型输出中提取第一个完整 JSON 对象。"""
+    """从模型输出中提取第一个完整、合法的 JSON 对象。
+
+    兼容 Markdown 代码块、前后缀说明文字，以及 JSON 之后又出现花括号的情况：
+    按字符串感知的方式配对花括号，取第一个能通过 json.loads 的完整对象。
+    """
     text = text.strip()
     if text.startswith("```"):
         text = re.sub(r"^```(?:json)?\s*", "", text)
         text = re.sub(r"\s*```$", "", text)
     start = text.find("{")
-    end = text.rfind("}")
-    if start == -1 or end == -1 or end <= start:
-        raise ValueError("模型响应中未找到 JSON 对象")
-    return json.loads(text[start : end + 1])
+    end = None
+    while start != -1:
+        try:
+            candidate, end = _balanced_json_object(text, start)
+            return json.loads(candidate)
+        except ValueError:
+            # 该段不是合法 JSON，继续找下一个 “{”
+            start = text.find("{", end + 1 if end is not None else start + 1)
+    raise ValueError("模型响应中未找到合法 JSON 对象")
+
+
+def _balanced_json_object(text: str, start: int) -> tuple[str, int]:
+    """从 start 处的 “{” 出发，返回（首个完整 JSON 对象文本, 结束下标）。
+
+    花括号配对时忽略 JSON 字符串内部的括号（含转义），确保不会把
+    模型输出末尾解释文字里的花括号误当成 JSON 结尾。
+    """
+    depth = 0
+    in_string = False
+    escaped = False
+    for index in range(start, len(text)):
+        ch = text[index]
+        if in_string:
+            if escaped:
+                escaped = False
+            elif ch == "\\":
+                escaped = True
+            elif ch == '"':
+                in_string = False
+            continue
+        if ch == '"':
+            in_string = True
+        elif ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start : index + 1], index
+    raise ValueError("模型响应中未找到完整的 JSON 对象")
 
 
 def _response_from_data(request: GenerateAdvanceRequest, data: dict[str, Any]) -> GenerateAdvanceResponse:
