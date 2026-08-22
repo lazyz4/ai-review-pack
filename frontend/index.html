@@ -226,12 +226,12 @@
       <h2>② 生成偏好与提交</h2>
       <label>偏好题型（可多选）</label>
       <div class="chips" id="type-chips">
-        <span class="chip on" data-type="multiple_choice">选择题</span>
-        <span class="chip on" data-type="short_answer">简答题</span>
-        <span class="chip on" data-type="case_analysis">案例分析/应用题</span>
-        <span class="chip" data-type="true_false">判断题</span>
-        <span class="chip" data-type="fill_blank">填空题</span>
-        <span class="chip" data-type="coding">设计/证明/计算题</span>
+        <span class="chip on" data-type="multiple_choice" onclick="toggleChip(this)">选择题</span>
+        <span class="chip on" data-type="short_answer" onclick="toggleChip(this)">简答题</span>
+        <span class="chip on" data-type="case_analysis" onclick="toggleChip(this)">案例分析/应用题</span>
+        <span class="chip" data-type="true_false" onclick="toggleChip(this)">判断题</span>
+        <span class="chip" data-type="fill_blank" onclick="toggleChip(this)">填空题</span>
+        <span class="chip" data-type="coding" onclick="toggleChip(this)">设计/证明/计算题</span>
       </div>
       <label for="coverage-priority">覆盖优先级</label>
       <select id="coverage-priority">
@@ -241,10 +241,10 @@
       </select>
       <label>输出格式</label>
       <div class="chips" id="format-chips">
-        <span class="chip on" data-format="WORD">Word（默认）</span>
-        <span class="chip" data-format="PDF">PDF</span>
-        <span class="chip" data-format="MARKDOWN">Markdown</span>
-        <span class="chip" data-format="JSON">导入模板（JSON）</span>
+        <span class="chip on" data-format="WORD" onclick="toggleChip(this)">Word（默认）</span>
+        <span class="chip" data-format="PDF" onclick="toggleChip(this)">PDF</span>
+        <span class="chip" data-format="MARKDOWN" onclick="toggleChip(this)">Markdown</span>
+        <span class="chip" data-format="JSON" onclick="toggleChip(this)">导入模板（JSON）</span>
       </div>
 
       <details id="llm-settings" style="margin-top:16px">
@@ -397,7 +397,10 @@
 
 <div class="modal-mask" id="auth-modal">
   <div class="modal">
-    <h3 id="auth-title">登录</h3>
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <h3 id="auth-title" style="margin:0">登录</h3>
+      <button class="link-btn" onclick="hideAuth()" aria-label="关闭">✕ 关闭</button>
+    </div>
     <div class="auth-tabs">
       <button class="auth-tab active" id="tab-login" onclick="switchAuth('login')">登录</button>
       <button class="auth-tab" id="tab-register" onclick="switchAuth('register')">注册</button>
@@ -451,6 +454,7 @@
   let draft = null;
   let editingTopicId = null;
   let selectedFile = null;
+  let preferredFormats = ["WORD"];
   let authToken = localStorage.getItem("auth_token") || "";
   let currentUser = null;
   let authMode = "login";
@@ -489,7 +493,10 @@
     if (provider === "ollama") {
       $("llm-api-key").value = "";
       $("llm-api-key").disabled = true;
-      $("llm-settings-hint").textContent = "本地 Ollama 不需要 Key，但仅在你自己的电脑上运行后端时有效（云端部署时请选择云端服务商）。";
+      const remote = !/^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])$/i.test(window.location.hostname);
+      $("llm-settings-hint").textContent = remote
+        ? "云端部署没有本地 Ollama：选择它不会调用 DeepSeek（不扣费），但只能使用本地启发式生成，质量较低。"
+        : "本地 Ollama 不需要 Key，直接使用你电脑上的模型（免费）。";
     } else {
       $("llm-api-key").disabled = false;
       $("llm-settings-hint").textContent = provider === "custom"
@@ -525,8 +532,7 @@
     const apiKey = $("llm-api-key").value.trim();
     const baseUrl = $("llm-base-url").value.trim();
     const model = $("llm-model").value.trim();
-    const useSaved = localStorage.getItem("llm_settings") !== null;
-    if (provider && (useSaved || provider !== "ollama")) headers["X-LLM-Provider"] = provider;
+    if (provider) headers["X-LLM-Provider"] = provider;
     if (apiKey) headers["X-API-Key"] = apiKey;
     if (baseUrl) headers["X-LLM-Base-URL"] = baseUrl;
     if (model) headers["X-LLM-Model"] = model;
@@ -737,6 +743,7 @@
     if (!selectedFile && !$("outline-text").value.trim()) { toast("请上传文件或粘贴大纲文本"); return; }
 
     setGenerating(true);
+    preferredFormats = selectedFormats();
     let progress = 0;
     const timer = setInterval(() => {
       progress = Math.min(progress + 2 + Math.random() * 6, 92);
@@ -841,6 +848,9 @@
   /* ---------- 渲染结果 ---------- */
   function renderResult() {
     if (!draft) return;
+    const fmt = preferredFormats[0] || "WORD";
+    const exportSelect = $("export-format");
+    if (Array.from(exportSelect.options).some(o => o.value === fmt)) exportSelect.value = fmt;
     $("result-title").textContent = $("course-name").value.trim() || currentSubject();
     $("version-label").textContent = "outline_version：" + draft.outline_version;
     $("result-meta").textContent = "科目：" + currentSubject() + "　·　生成时间：" +
@@ -1085,6 +1095,10 @@
   checkHealth();
   loadLlmSettings();
   checkAuth();
+
+  $("auth-modal").addEventListener("click", e => {
+    if (e.target.id === "auth-modal") hideAuth();
+  });
 </script>
 </body>
 </html>
