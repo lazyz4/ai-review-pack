@@ -250,7 +250,7 @@
       <details id="llm-settings" open style="margin-top:16px">
         <summary>模型设置（演示/注册账号都可自选 DeepSeek、Ollama 等）</summary>
         <label for="llm-provider">服务商</label>
-        <select id="llm-provider" onchange="onProviderChange(true)">
+        <select id="llm-provider" onchange="onProviderChange(true); providerTouched = true; checkHealth()">
           <option value="ollama">本地 Ollama（免费，无需 Key）</option>
           <option value="deepseek">DeepSeek（便宜，推荐）</option>
           <option value="openai">OpenAI</option>
@@ -459,6 +459,7 @@
   let authMode = "login";
   let demoAccountEnabled = false;
   let keySkipped = false;
+  let providerTouched = false;
   let API_ROOT = ""; // 同源页面为空；部署在 GitHub Pages 时自动回退到本地后端
 
   function apiUrl(path) {
@@ -694,7 +695,10 @@
     const candidates = ["", "http://127.0.0.1:8000"];
     for (const root of candidates) {
       try {
-        const resp = await fetch(root + "/api/v1/health", { mode: "cors", headers: llmHeaders() });
+        // 用户未保存、也未手动切换过服务商时，不带 LLM 请求头，
+        // 让后端报告其默认服务商（云端为 DeepSeek），避免误显示“本地 Ollama 无法连接”
+        const headers = (localStorage.getItem("llm_settings") || providerTouched) ? llmHeaders() : {};
+        const resp = await fetch(root + "/api/v1/health", { mode: "cors", headers: headers });
         if (!resp.ok) continue;
         const data = await resp.json();
         if (!data || data.status !== "ok") continue;
@@ -708,7 +712,11 @@
           pill.textContent = label + " 已连接 · " + data.model;
         } else {
           pill.className = "ollama-pill off";
-          pill.textContent = label + "：" + (data.message || "未连接");
+          if (data.provider === "ollama") {
+            pill.textContent = "本地 Ollama：云端无本地模型，将使用启发式生成（在本机运行才有真模型）";
+          } else {
+            pill.textContent = label + "：" + (data.message || "未连接");
+          }
         }
         if (!localStorage.getItem("llm_settings") && data.provider && PROVIDER_PRESETS[data.provider]) {
           $("llm-provider").value = data.provider;
